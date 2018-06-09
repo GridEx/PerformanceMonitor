@@ -1,0 +1,7 @@
+/src/bin/Debug/*.exe
+/src/bin/Debug/PerformanceMonitor.exe
+obj
+.vs
+bin
+*.user
+packages
