@@ -24,350 +24,361 @@ using GridEx.PerformanceMonitor.Client;
 
 namespace GridEx.PerformanceMonitor
 {
-    public partial class MainWindow : Window, INotifyPropertyChanged
-    {
-        public int connectionCount { get => client == null ? 0 : client.ConnectionsCount; }
+	public partial class MainWindow : Window, INotifyPropertyChanged
+	{
+		public int ConnectionCount { get => _client == null ? 0 : _client.ConnectionsCount; }
 
-        long _maxConnections = 8;
-        public long maxConnections
-        {
-            get => _maxConnections;
-            set { _maxConnections = value < 1 ? 1 : value; ; NotifyPropertyChanged("maxConnections"); }
-        }
-        long _maxOrdersPerSecond = 10000;
-        public long maxOrdersPerSecond
-        {
-            get => _maxOrdersPerSecond;
-            set { _maxOrdersPerSecond = value < maxConnections ? (maxConnections * 10) : value; NotifyPropertyChanged("maxOrdersPerSecond"); }
-        }
+		public event PropertyChangedEventHandler PropertyChanged;
 
-        ManualResetEventSlim _exitWait = new ManualResetEventSlim(true);
-        ManualResetEventSlim processesStartedEvent = new ManualResetEventSlim(false);
+		public long MaxConnections
+		{
+			get => _maxConnections;
+			set { _maxConnections = value < 1 ? 1 : value; ; NotifyPropertyChanged("maxConnections"); }
+		}
 
-        MultiClientManager client;
-        readonly DispatcherTimer tpsTimer = new DispatcherTimer();
-        int stepsPerMinute;
-        int _frequency;
-        public int frequency
-        {
-            get => _frequency;
-            set { if (value > 0) { _frequency = value; stepsPerMinute = 60 / _frequency; } }
-        }
-        int intervalInMinutes = 2;
+		public long MaxOrdersPerSecond
+		{
+			get => _maxOrdersPerSecond;
+			set { _maxOrdersPerSecond = value < MaxConnections ? (MaxConnections * 10) : value; NotifyPropertyChanged("maxOrdersPerSecond"); }
+		}
 
-        double[] animatedX;
-        double[] processedOrdersY;
-        double[] averageY;
+		public int Frequency
+		{
+			get => _frequency;
+			set { if (value > 0) { _frequency = value; _stepsPerMinute = 60 / _frequency; } }
+		}
 
-        double[] cancelledOrdersY;
-        double[] createdOrdersY;
-        double[] executedOrdersY;
-        double[] completedOrdersY;
-        double[] rejectedOrdersY;
-        double[] rejectedRequestsY;
+		public MainWindow()
+		{
+			Frequency = 1;
 
-        double[] ordersSendY;
-        double[] averageSendY;
-        double[] latency90Y;
-        double[] latency95Y;
-        double[] latency9999Y;
+			InitializeComponent();
 
-        LineGraph currentTpsGraph;
-        LineGraph averagePerformanceGraph;
-        LineGraph cancelledOrdersGraph;
-        LineGraph createdOrdersGraph;
-        LineGraph executedOrdersGraph;
-        LineGraph completedOrdersGraph;
-        LineGraph rejectedOrdersGraph;
-        LineGraph rejectedRequestsGraph;
-        LineGraph orderSendGraph;
-        LineGraph averageSendGraph;
-        LineGraph latency90Graph;
-        LineGraph latency95Graph;
-        LineGraph latency9999Graph;
-        public MainWindow()
-        {
-            frequency = 1;
+			ResetDatas();
 
-            InitializeComponent();
+			NotifyPropertyChanged("connectionCount");
+		}
 
-            ResetDatas();
+		private LineGraph CreateGraph(ref Plot plot, Brush brush, string tooltip)
+		{
+			var lineGraph = new LineGraph
+			{
+				Stroke = brush,
+				Description = tooltip,
+				StrokeThickness = 3
+			};
+			plot.Children.Add(lineGraph);
+			return lineGraph;
+		}
 
-            NotifyPropertyChanged("connectionCount");
-        }
+		private void UpdateAllPlots(long countOfIntervals)
+		{
+			_currentTpsGraph.Plot(_animatedX, _processedOrdersY);
+			_averagePerformanceGraph.Plot(_animatedX, _averageY);
+			_cancelledOrdersGraph.Plot(_animatedX, _cancelledOrdersY);
+			_createdOrdersGraph.Plot(_animatedX, _createdOrdersY);
+			_executedOrdersGraph.Plot(_animatedX, _executedOrdersY);
+			_completedOrdersGraph.Plot(_animatedX, _completedOrdersY);
+			_rejectedOrdersGraph.Plot(_animatedX, _rejectedOrdersY);
+			_rejectedRequestsGraph.Plot(_animatedX, _rejectedRequestsY);
+			_averageSendGraph.Plot(_animatedX, _averageSendY);
+			_orderSendGraph.Plot(_animatedX, _ordersSendY);
+			_latency90Graph.Plot(_animatedX, _latency90Y);
+			_latency95Graph.Plot(_animatedX, _latency95Y);
+			_latency99Graph.Plot(_animatedX, _latency99Y);
+			latencyChart.BottomTitle = "Intervals: " + countOfIntervals.ToString();
+		}
 
-        LineGraph CreateGraph(ref Plot plot, Brush brush, string tooltip)
-        {
-            var lineGraph = new LineGraph
-            {
-                Stroke = brush,
-                Description = tooltip,
-                StrokeThickness = 3
-            };
-            plot.Children.Add(lineGraph);
-            return lineGraph;
-        }
+		private void ResetDatas()
+		{
+			_animatedX = new double[_intervalInMinutes * _stepsPerMinute];
+			_processedOrdersY = new double[_animatedX.Length];
+			_averageY = new double[_animatedX.Length];
+			_cancelledOrdersY = new double[_animatedX.Length];
+			_createdOrdersY = new double[_animatedX.Length];
+			_executedOrdersY = new double[_animatedX.Length];
+			_completedOrdersY = new double[_animatedX.Length];
+			_rejectedOrdersY = new double[_animatedX.Length];
+			_rejectedRequestsY = new double[_animatedX.Length];
+			_ordersSendY = new double[_animatedX.Length];
+			_averageSendY = new double[_animatedX.Length];
+			_latency90Y = new double[_animatedX.Length];
+			_latency95Y = new double[_animatedX.Length];
+			_latency99Y = new double[_animatedX.Length];
 
-        void UpdateAllPlots(long countOfIntervals)
-        {
-            currentTpsGraph.Plot(animatedX, processedOrdersY);
-            averagePerformanceGraph.Plot(animatedX, averageY);
-            cancelledOrdersGraph.Plot(animatedX, cancelledOrdersY);
-            createdOrdersGraph.Plot(animatedX, createdOrdersY);
-            executedOrdersGraph.Plot(animatedX, executedOrdersY);
-            completedOrdersGraph.Plot(animatedX, completedOrdersY);
-            rejectedOrdersGraph.Plot(animatedX, rejectedOrdersY);
-            rejectedRequestsGraph.Plot(animatedX, rejectedRequestsY);
-            averageSendGraph.Plot(animatedX, averageSendY);
-            orderSendGraph.Plot(animatedX, ordersSendY);
-            latency90Graph.Plot(animatedX, latency90Y);
-            latency95Graph.Plot(animatedX, latency95Y);
-            latency9999Graph.Plot(animatedX, latency9999Y);
-            latencyChart.BottomTitle = "Intervals: " + countOfIntervals.ToString();
-        }
+			for (int i = 0; i < _animatedX.Length; i++)
+			{
+				_animatedX[i] = i / (float)Frequency - (_intervalInMinutes * 60);
+				_latency90Y[i] = _latency95Y[i] = _latency99Y[i] =
+					_averageSendY[i] = _ordersSendY[i] =
+					_cancelledOrdersY[i] = _createdOrdersY[i] = _executedOrdersY[i] = _completedOrdersY[i] = _rejectedOrdersY[i] = _rejectedRequestsY[i] =
+					_averageY[i] = _processedOrdersY[i] = 0;
+			}
 
-        void ResetDatas()
-        {
-            animatedX = new double[intervalInMinutes * stepsPerMinute];
-            processedOrdersY = new double[animatedX.Length];
-            averageY = new double[animatedX.Length];
-            cancelledOrdersY = new double[animatedX.Length];
-            createdOrdersY = new double[animatedX.Length];
-            executedOrdersY = new double[animatedX.Length];
-            completedOrdersY = new double[animatedX.Length];
-            rejectedOrdersY = new double[animatedX.Length];
-            rejectedRequestsY = new double[animatedX.Length];
-            ordersSendY = new double[animatedX.Length];
-            averageSendY = new double[animatedX.Length];
-            latency90Y = new double[animatedX.Length];
-            latency95Y = new double[animatedX.Length];
-            latency9999Y = new double[animatedX.Length];
+			if (_currentTpsGraph != null)
+			{
+				UpdateAllPlots(0);
+			}
+			else
+			{
+				_latency90Graph = CreateGraph(ref latencyPlot, Brushes.Red, "90%");
+				_latency95Graph = CreateGraph(ref latencyPlot, Brushes.Green, "95%");
+				_latency99Graph = CreateGraph(ref latencyPlot, Brushes.LightBlue, "99%");
 
-            for (int i = 0; i < animatedX.Length; i++)
-            {
-                animatedX[i] =  i / (float)frequency - (intervalInMinutes * 60);
-                latency90Y[i] = latency95Y[i] = latency9999Y[i] =
-                    averageSendY[i] = ordersSendY[i] =
-                    cancelledOrdersY[i] = createdOrdersY[i] = executedOrdersY[i] = completedOrdersY[i] = rejectedOrdersY[i] = rejectedRequestsY[i] =
-                    averageY[i] = processedOrdersY[i] = 0;
-            }
+				_averageSendGraph = CreateGraph(ref sendOrdersPlot, Brushes.MediumBlue, "Average perf/min");
+				_orderSendGraph = CreateGraph(ref sendOrdersPlot, Brushes.DeepPink, "Orders send");
 
-            if (currentTpsGraph != null)
-            {
-                UpdateAllPlots(0);
-            }
-            else
-            {
-                latency90Graph = CreateGraph(ref latencyPlot, Brushes.Red, "90%");
-                latency95Graph = CreateGraph(ref latencyPlot, Brushes.Green, "95%");
-                latency9999Graph = CreateGraph(ref latencyPlot, Brushes.LightBlue, "99%");
+				_averagePerformanceGraph = CreateGraph(ref TPSPlot, Brushes.Blue, "Average perf/min");
+				_currentTpsGraph = CreateGraph(ref TPSPlot, Brushes.DarkGreen, "Current TPS");
 
-                averageSendGraph = CreateGraph(ref sendOrdersPlot, Brushes.MediumBlue, "Average perf/min");
-                orderSendGraph = CreateGraph(ref sendOrdersPlot, Brushes.DeepPink, "Orders send");
+				_cancelledOrdersGraph = CreateGraph(ref cancelledOrdersPlot, Brushes.DarkOliveGreen, "Canceled orders");
 
-                averagePerformanceGraph = CreateGraph(ref TPSPlot, Brushes.Blue, "Average perf/min");
-                currentTpsGraph = CreateGraph(ref TPSPlot, Brushes.DarkGreen, "Current TPS");
+				_createdOrdersGraph = CreateGraph(ref createdOrdersPlot, Brushes.SeaGreen, "Created orders");
 
-                cancelledOrdersGraph = CreateGraph(ref cancelledOrdersPlot, Brushes.DarkOliveGreen, "Canceled orders");
+				_executedOrdersGraph = CreateGraph(ref executedOrdersPlot, Brushes.DarkOrange, "Executed orders");
 
-                createdOrdersGraph = CreateGraph(ref createdOrdersPlot, Brushes.SeaGreen, "Created orders");
+				_completedOrdersGraph = CreateGraph(ref completedOrdersPlot, Brushes.Brown, "Completed orders");
 
-                executedOrdersGraph = CreateGraph(ref executedOrdersPlot, Brushes.DarkOrange, "Executed orders");
+				_rejectedOrdersGraph = CreateGraph(ref rejectedOrdersPlot, Brushes.Orchid, "Rejected orders");
 
-                completedOrdersGraph = CreateGraph(ref completedOrdersPlot, Brushes.Brown, "Completed orders");
+				_rejectedRequestsGraph = CreateGraph(ref rejectedRequestsPlot, Brushes.Red, "Rejected requests");
+			}
+		}
 
-                rejectedOrdersGraph = CreateGraph(ref rejectedOrdersPlot, Brushes.Orchid, "Rejected orders");
+		private void startStopButton_Checked(object sender, RoutedEventArgs e)
+		{
+			optionsContainer.IsEnabled = false;
+			_stop = false;
+			startStopButton.IsEnabled = false;
+			startStopButton.Content = "Starting...";
+			Dispatcher.Invoke(new Action(() =>
+			{
+				CreateSim();
+				CreateDataCollectionThread();
+			}), DispatcherPriority.Background);
 
-                rejectedRequestsGraph = CreateGraph(ref rejectedRequestsPlot, Brushes.Red, "Rejected requests");
-            }
-        }
+		}
 
-        private void startStopButton_Checked(object sender, RoutedEventArgs e)
-        {
-            optionsContainer.IsEnabled = false;
-            stop = false;
-            startStopButton.IsEnabled = false;
-            startStopButton.Content = "Starting...";
-            Dispatcher.Invoke(new Action(() =>
-            {
-                CreateSim();
-                CreateDataCollectionThread();
-            }), DispatcherPriority.Background);
+		private void startStopButton_Unchecked(object sender, RoutedEventArgs e)
+		{
+			startStopButton.IsChecked = false;
+			startStopButton.Content = "Stopping...";
+			tbTotalOrders.Text += " - Last value (Stopped)";
 
-        }
-        bool stop;
-        private void startStopButton_Unchecked(object sender, RoutedEventArgs e)
-        {
-            startStopButton.IsChecked = false;
-            startStopButton.Content = "Stopping...";
-            tbTotalOrders.Text += " - Last value (Stopped)";
+			Dispatcher.Invoke(new Action(() =>
+			{
+				processesStartedEvent.Reset();
+				_stop = true;
+				_exitWait.Wait(5000);
+				if (!_exitWait.IsSet)
+				{
+					_client.ForceStop();
+					_exitWait.Set();
+				}
+				ResetDatas();
+				NotifyPropertyChanged("connectionCount");
+				startStopButton.Content = "Start";
+				startStopButton.IsEnabled = true;
+				optionsContainer.IsEnabled = true;
+			}), DispatcherPriority.Background);
+		}
 
-            Dispatcher.Invoke(new Action(() =>
-            {
-                processesStartedEvent.Reset();
-                stop = true;
-                _exitWait.Wait(5000);
-                if (!_exitWait.IsSet)
-                {
-                    client.ForceStop();
-                    _exitWait.Set();
-                }
-                ResetDatas();
-                NotifyPropertyChanged("connectionCount");
-                startStopButton.Content = "Start";
-                startStopButton.IsEnabled = true;
-                optionsContainer.IsEnabled = true;
-            }), DispatcherPriority.Background);
-        }
+		private void CollectData()
+		{
+			double totalOrderSend = 0;
+			double totalOrdersProcessed = 1;
 
-        void CollectData()
-        {
-            double totalOrderSend = 0;
-            double totalOrdersProcessed = 1;
+			processesStartedEvent.Wait();
 
-            processesStartedEvent.Wait();
+			Dispatcher.Invoke(new Action(() =>
+			{
+				startStopButton.Content = "Stop";
+				startStopButton.IsEnabled = true;
+			}));
 
-            Dispatcher.Invoke(new Action(() =>
-            {
-                startStopButton.Content = "Stop";
-                startStopButton.IsEnabled = true;
-            }));
+			var threadEvent = new ManualResetEventSlim(false);
+			var stepsPassed = 0;
+			var needCalculatePassedSteps = true;
 
-            ManualResetEventSlim threadEvent = new ManualResetEventSlim(false);
-            int stepsPassed = 0;
-            bool needCalculatePassedSteps = true;
+			int pauseDelay = 1000 / Frequency;
 
-            int pauseDelay = 1000 / frequency;
+			while (!_stop)
+			{
+				threadEvent.Wait(pauseDelay);
+				if (_client == null)
+				{
+					continue;
+				}
 
-            while (!stop)
-            {
-                threadEvent.Wait(pauseDelay);
-                if (client == null)
-                    continue;
-                long processedOrders = client.ResetProcessedOrders();
-                totalOrdersProcessed += processedOrders;
+				var processedOrders = _client.ResetProcessedOrders();
+				totalOrdersProcessed += processedOrders;
 
-                for (int i = 0; i < processedOrdersY.Length - 1; i++)
-                {
-                    processedOrdersY[i] = processedOrdersY[i + 1];
-                    averageY[i] = averageY[i + 1];
-                    cancelledOrdersY[i] = cancelledOrdersY[i + 1];
-                    createdOrdersY[i] = createdOrdersY[i + 1];
-                    executedOrdersY[i] = executedOrdersY[i + 1];
-                    completedOrdersY[i] = completedOrdersY[i + 1];
-                    rejectedOrdersY[i] = rejectedOrdersY[i + 1];
-                    rejectedRequestsY[i] = rejectedRequestsY[i + 1];
-                    ordersSendY[i] = ordersSendY[i + 1];
-                    averageSendY[i] = averageSendY[i + 1];
-                    latency90Y[i] = latency90Y[i + 1];
-                    latency95Y[i] = latency95Y[i + 1];
-                    latency9999Y[i] = latency9999Y[i + 1];
-                }
+				for (int i = 0; i < _processedOrdersY.Length - 1; i++)
+				{
+					_processedOrdersY[i] = _processedOrdersY[i + 1];
+					_averageY[i] = _averageY[i + 1];
+					_cancelledOrdersY[i] = _cancelledOrdersY[i + 1];
+					_createdOrdersY[i] = _createdOrdersY[i + 1];
+					_executedOrdersY[i] = _executedOrdersY[i + 1];
+					_completedOrdersY[i] = _completedOrdersY[i + 1];
+					_rejectedOrdersY[i] = _rejectedOrdersY[i + 1];
+					_rejectedRequestsY[i] = _rejectedRequestsY[i + 1];
+					_ordersSendY[i] = _ordersSendY[i + 1];
+					_averageSendY[i] = _averageSendY[i + 1];
+					_latency90Y[i] = _latency90Y[i + 1];
+					_latency95Y[i] = _latency95Y[i + 1];
+					_latency99Y[i] = _latency99Y[i + 1];
+				}
 
-                processedOrdersY[processedOrdersY.Length - 1] = processedOrders;
-                cancelledOrdersY[cancelledOrdersY.Length - 1] = client.ResetCancelledOrders();
-                createdOrdersY[createdOrdersY.Length - 1] = client.ResetCreatedOrders();
-                executedOrdersY[executedOrdersY.Length - 1] = client.ResetExecutedOrders();
-                completedOrdersY[completedOrdersY.Length - 1] = client.ResetCompletedOrders();
-                rejectedOrdersY[rejectedOrdersY.Length - 1] = client.ResetRejectedOrders();
-                rejectedRequestsY[rejectedRequestsY.Length - 1] = client.ResetRejectedRequests();
+				_processedOrdersY[_processedOrdersY.Length - 1] = processedOrders;
+				_cancelledOrdersY[_cancelledOrdersY.Length - 1] = _client.ResetCancelledOrders();
+				_createdOrdersY[_createdOrdersY.Length - 1] = _client.ResetCreatedOrders();
+				_executedOrdersY[_executedOrdersY.Length - 1] = _client.ResetExecutedOrders();
+				_completedOrdersY[_completedOrdersY.Length - 1] = _client.ResetCompletedOrders();
+				_rejectedOrdersY[_rejectedOrdersY.Length - 1] = _client.ResetRejectedOrders();
+				_rejectedRequestsY[_rejectedRequestsY.Length - 1] = _client.ResetRejectedRequests();
 
-                totalOrderSend += (ordersSendY[ordersSendY.Length - 1] = client.ResetSendOrders());
+				totalOrderSend += (_ordersSendY[_ordersSendY.Length - 1] = _client.ResetSendOrders());
 
-                if (needCalculatePassedSteps)
-                {
-                    stepsPassed++;
-                    needCalculatePassedSteps = stepsPassed < stepsPerMinute;
-                }
-                averageY[averageY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref processedOrdersY);
-                averageSendY[averageSendY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref ordersSendY);
+				if (needCalculatePassedSteps)
+				{
+					stepsPassed++;
+					needCalculatePassedSteps = stepsPassed < _stepsPerMinute;
+				}
+				_averageY[_averageY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref _processedOrdersY);
+				_averageSendY[_averageSendY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref _ordersSendY);
 
-                client.GetLatencyStatistic(out long countOfIntervals, out double latency90, out double latency95, out double latency9999);
-                latency90Y[latency90Y.Length - 1] = latency90;
-                latency95Y[latency95Y.Length - 1] = latency95;
-                latency9999Y[latency9999Y.Length - 1] = latency9999;
+				_client.GetLatencyStatistic(out long countOfIntervals, out double latency90, out double latency95, out double latency9999);
+				_latency90Y[_latency90Y.Length - 1] = latency90;
+				_latency95Y[_latency95Y.Length - 1] = latency95;
+				_latency99Y[_latency99Y.Length - 1] = latency9999;
 
-                Dispatcher.BeginInvoke(new Action(() =>
-                {
-                    NotifyPropertyChanged("connectionCount");
-                    UpdateAllPlots(countOfIntervals);
+				Dispatcher.BeginInvoke(new Action(() =>
+				{
+					NotifyPropertyChanged("connectionCount");
+					UpdateAllPlots(countOfIntervals);
 
-                    tbTotalOrders.Text = string.Format("Orders Proc|Ave|Send:{0,10} | {1,10} | {2,-10} ({3})", 
-                        processedOrders, (long)averageY[averageY.Length - 1], (long)ordersSendY[ordersSendY.Length - 1], DateTime.Now);
-                    tbTotalOrdersSend.Text = string.Format("Total  Proc|Send| % :{0,10} | {1,10} | {2:00.00}%",
-                        totalOrdersProcessed, totalOrderSend, totalOrdersProcessed / totalOrderSend * 100);
-                }), DispatcherPriority.ApplicationIdle);
+					tbTotalOrders.Text = string.Format("Orders Proc|Ave|Send:{0,10} | {1,10} | {2,-10} ({3})",
+						processedOrders, (long)_averageY[_averageY.Length - 1], (long)_ordersSendY[_ordersSendY.Length - 1], DateTime.Now);
+					tbTotalOrdersSend.Text = string.Format("Total  Proc|Send| % :{0,10} | {1,10} | {2:00.00}%",
+						totalOrdersProcessed, totalOrderSend, totalOrdersProcessed / totalOrderSend * 100);
+				}), DispatcherPriority.ApplicationIdle);
 
-                threadEvent.Reset();
-            }
-            client.onException -= Client_onException;
-            client.Stop();
+				threadEvent.Reset();
+			}
+			_client.OnException -= Client_OnException;
+			_client.Stop();
 
-            threadEvent.Wait(5000);
-            GC.Collect(2, GCCollectionMode.Forced);
-        }
+			threadEvent.Wait(5000);
+			GC.Collect(2, GCCollectionMode.Forced);
+		}
 
-        void CreateDataCollectionThread()
-        {
-            dataCollectionThread = new Thread(new ThreadStart(CollectData));
-            dataCollectionThread.SetApartmentState(ApartmentState.STA);
-            dataCollectionThread.Start();
-        }
+		private void CreateDataCollectionThread()
+		{
+			_dataCollectionThread = new Thread(new ThreadStart(CollectData));
+			_dataCollectionThread.SetApartmentState(ApartmentState.STA);
+			_dataCollectionThread.Start();
+		}
 
-        private void Simulation()
-        {
-            _exitWait.Reset();
-            long limitOfUnansweredOrders = 0;
-            Dispatcher.Invoke(new Action(() => { limitOfUnansweredOrders = maxOrdersPerSecondCheckBox.IsChecked == true ? maxOrdersPerSecond : 0; }));
-            client = new MultiClientManager(_exitWait, processesStartedEvent);
-            client.onException += Client_onException;
-            client.Run(App.connectionConfig.IP, App.connectionConfig.Port, maxConnections, limitOfUnansweredOrders / maxConnections);
-        }
+		private void Simulation()
+		{
+			_exitWait.Reset();
+			long limitOfUnansweredOrders = 0;
+			Dispatcher.Invoke(new Action(() => { limitOfUnansweredOrders = maxOrdersPerSecondCheckBox.IsChecked == true ? MaxOrdersPerSecond : 0; }));
+			_client = new MultiClientManager(_exitWait, processesStartedEvent);
+			_client.OnException += Client_OnException;
+			_client.Run(App.connectionConfig.IP, App.connectionConfig.Port, MaxConnections, limitOfUnansweredOrders / MaxConnections);
+		}
 
-        private void Client_onException(long userID, string message)
-        {
-            Dispatcher.Invoke(new Action(() =>
-           {
-               log.Text += string.Format("{0}\nUser ID: {1}\n{2}\n----------------------------------------------------------\n", DateTime.Now, userID, message);
-           }));
-        }
+		private void Client_OnException(long userID, string message)
+		{
+			Dispatcher.Invoke(
+				new Action(() =>
+			   {
+				   log.Text += string.Format("{0}\nUser ID: {1}\n{2}\n----------------------------------------------------------\n", DateTime.Now, userID, message);
+			   }));
+		}
 
-        Thread simThread;
-        Thread dataCollectionThread;
+		private void NotifyPropertyChanged(String propertyName)
+		{
+			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+		}
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        private void NotifyPropertyChanged(String propertyName)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
+		private void CreateSim()
+		{
+			_simThread = new Thread(new ThreadStart(Simulation))
+			{
+				Priority = ThreadPriority.Highest,
+				IsBackground = true
+			};
+			_simThread.SetApartmentState(ApartmentState.MTA);
+			_simThread.Start();
+		}
 
-        void CreateSim()
-        {
-            simThread = new Thread(new ThreadStart(Simulation))
-            {
-                Priority = ThreadPriority.Highest,
-                IsBackground = true
-            };
-            simThread.SetApartmentState(ApartmentState.MTA);
-            simThread.Start();
-        }
+		private void Window_Closed(object sender, EventArgs e)
+		{
+			_stop = true;
+			_exitWait.Wait(5000);
+			if (!_exitWait.IsSet && _client != null)
+				_client.ForceStop();
+		}
 
-        private void Window_Closed(object sender, EventArgs e)
-        {
-            stop = true;
-            _exitWait.Wait(5000);
-            if (!_exitWait.IsSet && client != null)
-                client.ForceStop();
-        }
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		private double CalculateAveragePerformance(int stepsPassed, ref double[] data)
+		{
+			double sum = 0;
+			int countOfValues = Math.Min(_stepsPerMinute, stepsPassed);
+			for (int i = data.Length - 1; i >= data.Length - countOfValues; i--)
+				sum += data[i];
+			return sum / countOfValues;
+		}
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        double CalculateAveragePerformance(int stepsPassed, ref double[] data)
-        {
-            double sum = 0;
-            int countOfValues = Math.Min(stepsPerMinute, stepsPassed);
-            for (int i = data.Length - 1; i >= data.Length - countOfValues; i--)
-                sum += data[i];
-            return sum / countOfValues;
-        }
-    }
+		private long _maxConnections = 8;
+		private long _maxOrdersPerSecond = 10000;
+
+		private Thread _simThread;
+		private Thread _dataCollectionThread;
+
+		private readonly ManualResetEventSlim _exitWait = new ManualResetEventSlim(true);
+		private readonly ManualResetEventSlim processesStartedEvent = new ManualResetEventSlim(false);
+
+		private MultiClientManager _client;
+		private readonly DispatcherTimer _tpsTimer = new DispatcherTimer();
+		private int _stepsPerMinute;
+		private int _frequency;
+		private bool _stop;
+
+		private int _intervalInMinutes = 2;
+
+		private double[] _animatedX;
+		private double[] _processedOrdersY;
+		private double[] _averageY;
+
+		private double[] _cancelledOrdersY;
+		private double[] _createdOrdersY;
+		private double[] _executedOrdersY;
+		private double[] _completedOrdersY;
+		private double[] _rejectedOrdersY;
+		private double[] _rejectedRequestsY;
+
+		private double[] _ordersSendY;
+		private double[] _averageSendY;
+		private double[] _latency90Y;
+		private double[] _latency95Y;
+		private double[] _latency99Y;
+
+		private LineGraph _currentTpsGraph;
+		private LineGraph _averagePerformanceGraph;
+		private LineGraph _cancelledOrdersGraph;
+		private LineGraph _createdOrdersGraph;
+		private LineGraph _executedOrdersGraph;
+		private LineGraph _completedOrdersGraph;
+		private LineGraph _rejectedOrdersGraph;
+		private LineGraph _rejectedRequestsGraph;
+		private LineGraph _orderSendGraph;
+		private LineGraph _averageSendGraph;
+		private LineGraph _latency90Graph;
+		private LineGraph _latency95Graph;
+		private LineGraph _latency99Graph;
+	}
 }
