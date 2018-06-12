@@ -23,7 +23,6 @@
             <Style.Setters>
                 <Setter Property="Margin" Value="5,0,5,0" />
                 <Setter Property="FontSize" Value="12" />
-                <Setter Property="IsHorizontalNavigationEnabled" Value="False" />
             </Style.Setters>
         </Style>
         <Style TargetType="{x:Type charts:Chart}" BasedOn="{StaticResource SideChartsStyle}" x:Key="SideChartsStyleWitchoutLegeng">
@@ -37,106 +36,113 @@
             </Style.Setters>
         </Style>
     </Window.Resources>
-    <Grid Margin="5,0,5,5" Name="containerGrid">
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="2*" />
-            <ColumnDefinition Width="4*" />
-            <ColumnDefinition Width="4*" />
-        </Grid.ColumnDefinitions>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="0.55*" MinHeight="50" />
-            <RowDefinition Height="1.9*"/>
-            <RowDefinition Height="1.9*"/>
-            <RowDefinition Height="1.9*"/>
-            <RowDefinition Height="1.9*"/>
-            <RowDefinition Height="1.9*"/>
-            <RowDefinition Height="1.85*"/>
-        </Grid.RowDefinitions>
-        
-        <ToggleButton Name="startStopButton" VerticalAlignment="Center" HorizontalAlignment="Center"  Width="100" Height="30" Content="Start" 
+    <DockPanel LastChildFill="True">
+        <ToolBar DockPanel.Dock="Top">
+            <Menu>
+                <MenuItem Header="IP config" ToolTip="Press to change server IP" Click="MenuItem_Click"/>
+            </Menu>
+        </ToolBar>
+        <Grid Margin="5,0,5,5" Name="containerGrid">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="4*" />
+                <ColumnDefinition Width="4*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="0.55*" MinHeight="50" />
+                <RowDefinition Height="1.9*"/>
+                <RowDefinition Height="1.9*"/>
+                <RowDefinition Height="1.9*"/>
+                <RowDefinition Height="1.9*"/>
+                <RowDefinition Height="1.9*"/>
+                <RowDefinition Height="1.85*"/>
+            </Grid.RowDefinitions>
+
+            <ToggleButton Name="startStopButton" VerticalAlignment="Center" HorizontalAlignment="Center"  Width="100" Height="30" Content="Start" 
                       Checked="startStopButton_Checked" Unchecked="startStopButton_Unchecked"/>
 
-        <StackPanel Name="optionsContainer" Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <WrapPanel HorizontalAlignment="Stretch">
-                <TextBlock Width="130" HorizontalAlignment="Left"
-                    Text="{Binding connectionCount, Mode=OneWay, RelativeSource={RelativeSource AncestorType=Window, Mode=FindAncestor}, StringFormat={}Connections: {0} of}" />
-                <TextBox Name="maxConnectionsTextBox" Width="50" AcceptsReturn="False" AcceptsTab="False" Margin="5,0,0,0" HorizontalAlignment="Right"
+            <StackPanel Name="optionsContainer" Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <WrapPanel HorizontalAlignment="Stretch">
+                    <TextBlock Width="130" HorizontalAlignment="Left"
+                    Text="{Binding ConnectionCount, Mode=OneWay, RelativeSource={RelativeSource AncestorType=Window, Mode=FindAncestor}, StringFormat={}Connections: {0} of}" />
+                    <TextBox Name="maxConnectionsTextBox" Width="50" AcceptsReturn="False" AcceptsTab="False" Margin="5,0,0,0" HorizontalAlignment="Right"
                          VerticalContentAlignment="Center"
                          Text="{Binding MaxConnections, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=Window, Mode=FindAncestor}}"/>
-            </WrapPanel>
-            <WrapPanel HorizontalAlignment="Left">
-                <CheckBox Name="maxOrdersPerSecondCheckBox" Content="Max travel orders:" VerticalContentAlignment="Center" Width="130" IsChecked="True" />
-                <TextBox Name="maxOrdersPerSecondTextBox" Width="100" AcceptsReturn="False" AcceptsTab="False" Margin="5,0,0,0"
+                </WrapPanel>
+                <WrapPanel HorizontalAlignment="Left">
+                    <CheckBox Name="maxOrdersPerSecondCheckBox" Content="Max travel orders:" VerticalContentAlignment="Center" Width="130" IsChecked="True" />
+                    <TextBox Name="maxOrdersPerSecondTextBox" Width="100" AcceptsReturn="False" AcceptsTab="False" Margin="5,0,0,0"
                          VerticalContentAlignment="Center"
                          IsEnabled="{Binding IsChecked, Mode=OneWay, ElementName=maxOrdersPerSecondCheckBox}"
                          Text="{Binding MaxOrdersPerSecond, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=Window, Mode=FindAncestor}}"/>
-            </WrapPanel>
-        </StackPanel>
+                </WrapPanel>
+            </StackPanel>
 
-        <GroupBox Header="Performance chart" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Grid.RowSpan="3" Margin="5"
+            <GroupBox Header="Performance chart" Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Grid.RowSpan="3" Margin="5"
                   BorderBrush="Blue" BorderThickness="2">
-            <charts:Chart Name="TPSchart" Style="{StaticResource BaseChartStyle}">
-                <charts:Plot Name="TPSPlot" >
-                    
-                </charts:Plot>
-            </charts:Chart>
-        </GroupBox>
+                <charts:Chart Name="TPSchart" Style="{StaticResource BaseChartStyle}">
+                    <charts:Plot Name="TPSPlot" >
 
-        <StackPanel Grid.Column="2" Grid.Row="0" 
+                    </charts:Plot>
+                </charts:Chart>
+            </GroupBox>
+
+            <StackPanel Grid.Column="2" Grid.Row="0" 
                    Margin="5" VerticalAlignment="Top">
-            <TextBlock Name="tbTotalOrders" 
+                <TextBlock Name="tbTotalOrders" 
                    VerticalAlignment="Center" HorizontalAlignment="Left">Orders Proc|Ave|Send:</TextBlock>
-            <TextBlock Name="tbTotalOrdersSend"
+                <TextBlock Name="tbTotalOrdersSend"
                    VerticalAlignment="Center" HorizontalAlignment="Left">Total Proc|Ave|Send:</TextBlock>
-        </StackPanel>
+            </StackPanel>
 
-        <charts:Chart Name="sendOrdersChart" Style="{StaticResource SideChartsStyle}"
+            <charts:Chart Name="sendOrdersChart" Style="{StaticResource SideChartsStyle}"
                     Grid.Column="2" Grid.Row="1"
                     LeftTitle="Send">
-            <charts:Plot Name="sendOrdersPlot" />
-        </charts:Chart>
+                <charts:Plot Name="sendOrdersPlot" />
+            </charts:Chart>
 
-        <charts:Chart Name="createdOrdersChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}"
+            <charts:Chart Name="createdOrdersChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}"
                     Grid.Column="2" Grid.Row="2"
                     LeftTitle="Created">
-            <charts:Plot Name="createdOrdersPlot" />
-        </charts:Chart>
-        <charts:Chart Name="executedOrdersChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}"
+                <charts:Plot Name="createdOrdersPlot" />
+            </charts:Chart>
+            <charts:Chart Name="executedOrdersChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}"
                                 Grid.Column="2" Grid.Row="3"
                     LeftTitle="Executed">
-            <charts:Plot Name="executedOrdersPlot" />
-        </charts:Chart>
-        <charts:Chart Name="completedOrdersChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}"
+                <charts:Plot Name="executedOrdersPlot" />
+            </charts:Chart>
+            <charts:Chart Name="completedOrdersChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}"
                     Grid.Column="2" Grid.Row="4"  Grid.RowSpan="2"
                     LeftTitle="Completed">
-            <charts:Plot Name="completedOrdersPlot" />
-        </charts:Chart>
-        <charts:Chart Name="cancelledOrdersChart" Style="{StaticResource SideChartsStyleWitchoutLegeng}"
+                <charts:Plot Name="completedOrdersPlot" />
+            </charts:Chart>
+            <charts:Chart Name="cancelledOrdersChart" Style="{StaticResource SideChartsStyleWitchoutLegeng}"
                                 Grid.Column="2" Grid.Row="6"
                     LeftTitle="Cancelled">
-            <charts:Plot Name="cancelledOrdersPlot" />
-        </charts:Chart>
-        <charts:Chart Name="latencyChart" Style="{StaticResource SideChartsStyle}"
+                <charts:Plot Name="cancelledOrdersPlot" />
+            </charts:Chart>
+            <charts:Chart Name="latencyChart" Style="{StaticResource SideChartsStyle}"
                                 Grid.Column="1" Grid.Row="4" Grid.RowSpan="2"
                     LeftTitle="Latency (ms)"
                     BottomTitle="Intervals: ">
-            <charts:Plot Name="latencyPlot" />
-        </charts:Chart>
+                <charts:Plot Name="latencyPlot" />
+            </charts:Chart>
 
-        <charts:Chart Name="rejectedOrdersChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}"
+            <charts:Chart Name="rejectedOrdersChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}"
                                 Grid.Column="0" Grid.Row="4"
                     LeftTitle="Rej. ord.">
-            <charts:Plot Name="rejectedOrdersPlot" />
-        </charts:Chart>
-        <charts:Chart Name="rejectedRequestsChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}" 
+                <charts:Plot Name="rejectedOrdersPlot" />
+            </charts:Chart>
+            <charts:Chart Name="rejectedRequestsChart"  Style="{StaticResource SideChartsStyleWitchoutLegeng}" 
                                 Grid.Column="0" Grid.Row="5"
                     LeftTitle="Rej. req.">
-            <charts:Plot Name="rejectedRequestsPlot" />
-        </charts:Chart>
+                <charts:Plot Name="rejectedRequestsPlot" />
+            </charts:Chart>
 
 
-        <GroupBox Header="Log" Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="2" Margin="5">
-            <TextBox Name="log" AcceptsReturn="True" AcceptsTab="True" IsReadOnly="True" VerticalScrollBarVisibility="Visible" />
-        </GroupBox>
-    </Grid>
+            <GroupBox Header="Log" Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="2" Margin="5">
+                <TextBox Name="log" AcceptsReturn="True" AcceptsTab="True" IsReadOnly="True" VerticalScrollBarVisibility="Visible" />
+            </GroupBox>
+        </Grid>
+    </DockPanel>
 </Window>

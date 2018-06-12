@@ -142,6 +142,8 @@ namespace GridEx.PerformanceMonitor.Client
                 client.ForceStop();
             }
             _clients.Clear();
+            _enviromentExitWait.Set();
+            _simulationEnded.Set();
         }
 
         public void ClearCache()
@@ -156,7 +158,8 @@ namespace GridEx.PerformanceMonitor.Client
 
 		private void TimerElapsed(object state)
 		{
-			if (!_clients.Any() || _clients.All(t => t.IsCompleted) || ConnectionsCount == 0 || _clientsFinishedEvents.All(ev => ev.IsSet))
+            ClientHft[] __clients = _clients.ToArray();
+            if (!__clients.Any() || __clients.All(t => t.IsCompleted) || __clients.All(c => c.IsConnected) || _clientsFinishedEvents.All(ev => ev.IsSet))
 			{
 				_enviromentExitWait.Set();
 				_taskCheckTimer.Dispose();
