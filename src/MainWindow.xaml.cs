@@ -33,13 +33,13 @@ namespace GridEx.PerformanceMonitor
 		public long MaxConnections
 		{
 			get => _maxConnections;
-			set { _maxConnections = value < 1 ? 1 : value; ; NotifyPropertyChanged("maxConnections"); }
+			set { _maxConnections = value < 1 ? 1 : value; ; NotifyPropertyChanged("MaxConnections"); }
 		}
 
 		public long MaxOrdersPerSecond
 		{
 			get => _maxOrdersPerSecond;
-			set { _maxOrdersPerSecond = value < MaxConnections ? (MaxConnections * 10) : value; NotifyPropertyChanged("maxOrdersPerSecond"); }
+			set { _maxOrdersPerSecond = value < MaxConnections ? (MaxConnections * 10) : value; NotifyPropertyChanged("MaxOrdersPerSecond"); }
 		}
 
 		public int Frequency
