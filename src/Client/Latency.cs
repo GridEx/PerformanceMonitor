@@ -7,17 +7,17 @@ using System.Threading.Tasks;
 
 namespace GridEx.PerformanceMonitor.Client
 {
-    class Latency
+    internal class Latency
     {
-        public readonly long id;
-        public readonly long sendTime;
-        public long orderCreatedTime;
+        public long Id;
+        public long SendTime;
+        public long OrderCreatedTime;
 
         public Latency(long id, long sendTime)
         {
-            this.id = id;
-            this.sendTime = sendTime;
-            orderCreatedTime = 0;
+            Id = id;
+            SendTime = sendTime;
+            OrderCreatedTime = 0;
         }
     }
 }
