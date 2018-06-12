@@ -62,14 +62,14 @@
                     Text="{Binding connectionCount, Mode=OneWay, RelativeSource={RelativeSource AncestorType=Window, Mode=FindAncestor}, StringFormat={}Connections: {0} of}" />
                 <TextBox Name="maxConnectionsTextBox" Width="50" AcceptsReturn="False" AcceptsTab="False" Margin="5,0,0,0" HorizontalAlignment="Right"
                          VerticalContentAlignment="Center"
-                         Text="{Binding maxConnections, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=Window, Mode=FindAncestor}}"/>
+                         Text="{Binding MaxConnections, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=Window, Mode=FindAncestor}}"/>
             </WrapPanel>
             <WrapPanel HorizontalAlignment="Left">
                 <CheckBox Name="maxOrdersPerSecondCheckBox" Content="Max travel orders:" VerticalContentAlignment="Center" Width="130" IsChecked="True" />
                 <TextBox Name="maxOrdersPerSecondTextBox" Width="100" AcceptsReturn="False" AcceptsTab="False" Margin="5,0,0,0"
                          VerticalContentAlignment="Center"
                          IsEnabled="{Binding IsChecked, Mode=OneWay, ElementName=maxOrdersPerSecondCheckBox}"
-                         Text="{Binding maxOrdersPerSecond, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=Window, Mode=FindAncestor}}"/>
+                         Text="{Binding MaxOrdersPerSecond, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=Window, Mode=FindAncestor}}"/>
             </WrapPanel>
         </StackPanel>
 
