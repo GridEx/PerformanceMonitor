@@ -104,7 +104,25 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Config\OptionsConfig.cs" />
+    <Compile Include="Controls\PriceVolumeStrategyControl.xaml.cs">
+      <DependentUpon>PriceVolumeStrategyControl.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\PriceAndVolumeWindow.xaml.cs">
+      <DependentUpon>PriceAndVolumeWindow.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Converters\CutDoubleConverter.cs" />
+    <Compile Include="Utils\IXElement.cs" />
+    <Compile Include="Utils\PriceVolumeStrategy.cs" />
     <Page Include="Config\IPWindow.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Controls\PriceVolumeStrategyControl.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Controls\PriceAndVolumeWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -175,6 +193,10 @@
       <Project>{1f7d6f2f-81da-438e-b0a6-89c66c80a332}</Project>
       <Name>API</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resourses\Sinus.png" />
+    <Resource Include="Resourses\Random_128x128.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

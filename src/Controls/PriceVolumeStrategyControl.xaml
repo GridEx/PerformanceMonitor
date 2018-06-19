@@ -1,0 +1,78 @@
+﻿<UserControl x:Class="PerformanceMonitor.Controls.PriceVolumeStrategyControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:PerformanceMonitor.Controls"
+			 xmlns:Converters="clr-namespace:PerformanceMonitor.Converters"
+			 FontSize="14"
+             mc:Ignorable="d">
+	<UserControl.Resources>
+		<Converters:CutDoubleConverter x:Key="cutDoubleConverter" />
+	</UserControl.Resources>
+	<GroupBox Name="container" VerticalContentAlignment="Center">
+		<Grid>
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition />
+				<ColumnDefinition Width="10" />
+				<ColumnDefinition />
+				<ColumnDefinition Width="10" />
+				<ColumnDefinition />
+			</Grid.ColumnDefinitions>
+			<Grid.RowDefinitions>
+				<RowDefinition />
+				<RowDefinition Height="10" />
+				<RowDefinition />
+			</Grid.RowDefinitions>
+			<RadioButton Grid.Column="0" Grid.Row="0" Name="sinRadioBtn">
+				<WrapPanel>
+					<Image Source="pack://application:,,,/Resourses\Sinus.png" Width="32" Height="32" />
+					<TextBlock>Sin</TextBlock>
+				</WrapPanel>
+			</RadioButton>
+			<RadioButton Grid.Column="0" Grid.Row="2" Name="randomBtn">
+				<WrapPanel>
+					<Image Source="pack://application:,,,/Resourses\Random_128x128.png" Width="32" Height="32" />
+					<TextBlock>Random</TextBlock>
+				</WrapPanel>
+			</RadioButton>
+
+			<WrapPanel Grid.Column="2" Grid.Row="0">
+				<TextBlock>Min:</TextBlock>
+				<TextBox Width="100" 
+					Text="{Binding Minimum, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor},
+					Converter={StaticResource cutDoubleConverter},
+					ConverterCulture=en-US}"/>
+			</WrapPanel>
+			<WrapPanel Grid.Column="2" Grid.Row="2">
+				<TextBlock>Max:</TextBlock>
+				<TextBox
+					Text="{Binding Maximum, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor},
+						Converter={StaticResource cutDoubleConverter},
+						ConverterCulture=en-US}"
+					Width="100" />
+			</WrapPanel>
+
+			<WrapPanel Grid.Column="4" Grid.Row="0"
+					   IsEnabled="{Binding IsChecked, Mode=OneWay, ElementName=sinRadioBtn, FallbackValue=false}">
+				<TextBlock >Period ms:</TextBlock>
+				<TextBox Name="periodTextBox" 
+						   Text="{Binding Period, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}, ConverterCulture=en-US}" 
+						 ToolTip="Period in miliseconds for sinusoid ([1000 ... 12000)"
+						 Width="50" />
+			</WrapPanel>
+
+			<WrapPanel Grid.Column="4" Grid.Row="2"
+					   IsEnabled="{Binding IsChecked, Mode=OneWay, ElementName=sinRadioBtn, FallbackValue=false}">
+				<TextBlock >Phase shift:</TextBlock>
+				<TextBox Name="phaseShiftTextBox" 
+						 HorizontalContentAlignment="Center"
+						   Text="{Binding PhaseShift, Mode=TwoWay, RelativeSource={RelativeSource AncestorType=UserControl, Mode=FindAncestor}, ConverterCulture=en-US}" 
+						 ToolTip="Phase shift between start-values for two clients"
+						 Width="40" />
+				<TextBlock>*π</TextBlock>
+			</WrapPanel>
+
+		</Grid>
+	</GroupBox>
+</UserControl>
