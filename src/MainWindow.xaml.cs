@@ -21,6 +21,9 @@ using System.Runtime.CompilerServices;
 using InteractiveDataDisplay.WPF;
 
 using GridEx.PerformanceMonitor.Client;
+using PerformanceMonitor.Config;
+using PerformanceMonitor.Utils;
+using PerformanceMonitor.Controls;
 
 namespace GridEx.PerformanceMonitor
 {
@@ -33,13 +36,13 @@ namespace GridEx.PerformanceMonitor
 		public long MaxConnections
 		{
 			get => _maxConnections;
-			set { _maxConnections = value < 1 ? 1 : value; ; NotifyPropertyChanged("maxConnections"); }
+			set { _maxConnections = Math.Min(1024, Math.Max(1, value)); NotifyPropertyChanged("MaxConnections"); }
 		}
 
 		public long MaxOrdersPerSecond
 		{
 			get => _maxOrdersPerSecond;
-			set { _maxOrdersPerSecond = value < MaxConnections ? (MaxConnections * 10) : value; NotifyPropertyChanged("maxOrdersPerSecond"); }
+			set { _maxOrdersPerSecond = value < (MaxConnections * 10) ? (MaxConnections * 10) : value; NotifyPropertyChanged("MaxOrdersPerSecond"); }
 		}
 
 		public int Frequency
@@ -50,16 +53,25 @@ namespace GridEx.PerformanceMonitor
 
 		public MainWindow()
 		{
+			OptionsConfig.Load(out _priceStrategy, out _volumeStrategy);
+
+			Random random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
+
+			if (_priceStrategy == null)
+				_priceStrategy = new PriceVolumeStrategyRandom(random, DefaultPriceBottom, DefaultPriceTop);
+			if (_volumeStrategy == null)
+				_volumeStrategy = new PriceVolumeStrategyRandom(random, DefaultVolumeBottom, DefaultVolumeTop);
+
 			Frequency = 1;
 
 			InitializeComponent();
 
-			ResetDatas();
+            ResetDatas();
 
-			NotifyPropertyChanged("connectionCount");
+            NotifyPropertyChanged("connectionCount");
 		}
 
-		private LineGraph CreateGraph(ref Plot plot, Brush brush, string tooltip)
+        private LineGraph CreateGraph(ref Plot plot, Brush brush, string tooltip)
 		{
 			var lineGraph = new LineGraph
 			{
@@ -69,12 +81,12 @@ namespace GridEx.PerformanceMonitor
 			};
 			plot.Children.Add(lineGraph);
 			return lineGraph;
-		}
+        }
 
-		private void UpdateAllPlots(long countOfIntervals)
+		private void UpdateAllPlots(long countOfIntervals, long minimumLatency)
 		{
 			_currentTpsGraph.Plot(_animatedX, _processedOrdersY);
-			_averagePerformanceGraph.Plot(_animatedX, _averageY);
+            _averagePerformanceGraph.Plot(_animatedX, _averageY);
 			_cancelledOrdersGraph.Plot(_animatedX, _cancelledOrdersY);
 			_createdOrdersGraph.Plot(_animatedX, _createdOrdersY);
 			_executedOrdersGraph.Plot(_animatedX, _executedOrdersY);
@@ -86,12 +98,50 @@ namespace GridEx.PerformanceMonitor
 			_latency90Graph.Plot(_animatedX, _latency90Y);
 			_latency95Graph.Plot(_animatedX, _latency95Y);
 			_latency99Graph.Plot(_animatedX, _latency99Y);
-			latencyChart.BottomTitle = "Intervals: " + countOfIntervals.ToString();
+			latencyChart.BottomTitle = string.Format("Intervals: {0, -10}      Min. latency = {1} ms", countOfIntervals, minimumLatency);
 		}
+
+        void RepeairFieldOfView()
+        {
+            TPSchart.IsAutoFitEnabled = true;
+            sendOrdersChart.IsAutoFitEnabled = true;
+            cancelledOrdersChart.IsAutoFitEnabled = true;
+            createdOrdersChart.IsAutoFitEnabled = true;
+            executedOrdersChart.IsAutoFitEnabled = true;
+            completedOrdersChart.IsAutoFitEnabled = true;
+            rejectedOrdersChart.IsAutoFitEnabled = true;
+            rejectedRequestsChart.IsAutoFitEnabled = true;
+            latencyChart.IsAutoFitEnabled = true;
+        }
 
 		private void ResetDatas()
 		{
-			_animatedX = new double[_intervalInMinutes * _stepsPerMinute];
+            if (_currentTpsGraph == null)
+            {
+                _latency90Graph = CreateGraph(ref latencyPlot, Brushes.Red, "90%");
+                _latency95Graph = CreateGraph(ref latencyPlot, Brushes.Green, "95%");
+                _latency99Graph = CreateGraph(ref latencyPlot, Brushes.LightBlue, "99%");
+
+                _averageSendGraph = CreateGraph(ref sendOrdersPlot, Brushes.MediumBlue, "Average perf/min");
+                _orderSendGraph = CreateGraph(ref sendOrdersPlot, Brushes.DeepPink, "Orders send");
+
+                _averagePerformanceGraph = CreateGraph(ref TPSPlot, Brushes.Blue, "Average perf/min");
+                _currentTpsGraph = CreateGraph(ref TPSPlot, Brushes.DarkGreen, "Current TPS");
+
+                _cancelledOrdersGraph = CreateGraph(ref cancelledOrdersPlot, Brushes.DarkOliveGreen, "Canceled orders");
+
+                _createdOrdersGraph = CreateGraph(ref createdOrdersPlot, Brushes.SeaGreen, "Created orders");
+
+                _executedOrdersGraph = CreateGraph(ref executedOrdersPlot, Brushes.DarkOrange, "Executed orders");
+
+                _completedOrdersGraph = CreateGraph(ref completedOrdersPlot, Brushes.Brown, "Completed orders");
+
+                _rejectedOrdersGraph = CreateGraph(ref rejectedOrdersPlot, Brushes.Orchid, "Rejected orders");
+
+                _rejectedRequestsGraph = CreateGraph(ref rejectedRequestsPlot, Brushes.Red, "Rejected requests");
+            }
+
+            _animatedX = new double[_intervalInMinutes * _stepsPerMinute];
 			_processedOrdersY = new double[_animatedX.Length];
 			_averageY = new double[_animatedX.Length];
 			_cancelledOrdersY = new double[_animatedX.Length];
@@ -115,39 +165,19 @@ namespace GridEx.PerformanceMonitor
 					_averageY[i] = _processedOrdersY[i] = 0;
 			}
 
-			if (_currentTpsGraph != null)
-			{
-				UpdateAllPlots(0);
-			}
-			else
-			{
-				_latency90Graph = CreateGraph(ref latencyPlot, Brushes.Red, "90%");
-				_latency95Graph = CreateGraph(ref latencyPlot, Brushes.Green, "95%");
-				_latency99Graph = CreateGraph(ref latencyPlot, Brushes.LightBlue, "99%");
-
-				_averageSendGraph = CreateGraph(ref sendOrdersPlot, Brushes.MediumBlue, "Average perf/min");
-				_orderSendGraph = CreateGraph(ref sendOrdersPlot, Brushes.DeepPink, "Orders send");
-
-				_averagePerformanceGraph = CreateGraph(ref TPSPlot, Brushes.Blue, "Average perf/min");
-				_currentTpsGraph = CreateGraph(ref TPSPlot, Brushes.DarkGreen, "Current TPS");
-
-				_cancelledOrdersGraph = CreateGraph(ref cancelledOrdersPlot, Brushes.DarkOliveGreen, "Canceled orders");
-
-				_createdOrdersGraph = CreateGraph(ref createdOrdersPlot, Brushes.SeaGreen, "Created orders");
-
-				_executedOrdersGraph = CreateGraph(ref executedOrdersPlot, Brushes.DarkOrange, "Executed orders");
-
-				_completedOrdersGraph = CreateGraph(ref completedOrdersPlot, Brushes.Brown, "Completed orders");
-
-				_rejectedOrdersGraph = CreateGraph(ref rejectedOrdersPlot, Brushes.Orchid, "Rejected orders");
-
-				_rejectedRequestsGraph = CreateGraph(ref rejectedRequestsPlot, Brushes.Red, "Rejected requests");
-			}
-		}
+            UpdateAllPlots(0, 0);
+            RepeairFieldOfView();
+        }
+        private void MenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            IPWindow iPWindow = new IPWindow(ref App.connectionConfig) { Owner = this };
+            iPWindow.ShowDialog();
+        }
 
 		private void startStopButton_Checked(object sender, RoutedEventArgs e)
 		{
-			optionsContainer.IsEnabled = false;
+            RepeairFieldOfView();
+            optionsContainer.IsEnabled = false;
 			_stop = false;
 			startStopButton.IsEnabled = false;
 			startStopButton.Content = "Starting...";
@@ -161,18 +191,20 @@ namespace GridEx.PerformanceMonitor
 
 		private void startStopButton_Unchecked(object sender, RoutedEventArgs e)
 		{
-			startStopButton.IsChecked = false;
-			startStopButton.Content = "Stopping...";
-			tbTotalOrders.Text += " - Last value (Stopped)";
+            _stop = true;
 
-			Dispatcher.Invoke(new Action(() =>
+            startStopButton.IsEnabled = false;
+			startStopButton.Content = "Stopping...";
+            
+            Dispatcher.BeginInvoke(new Action(() =>
 			{
 				processesStartedEvent.Reset();
-				_stop = true;
+				
 				_exitWait.Wait(5000);
 				if (!_exitWait.IsSet)
 				{
-					_client.ForceStop();
+                    _client.OnException -= Client_OnException;
+                    _client.ForceStop();
 					_exitWait.Set();
 				}
 				ResetDatas();
@@ -188,88 +220,107 @@ namespace GridEx.PerformanceMonitor
 			double totalOrderSend = 0;
 			double totalOrdersProcessed = 1;
 
-			processesStartedEvent.Wait();
+			processesStartedEvent.Wait(20000);
 
-			Dispatcher.Invoke(new Action(() =>
-			{
-				startStopButton.Content = "Stop";
-				startStopButton.IsEnabled = true;
-			}));
+            if (ConnectionCount == 0)
+            {
+                Dispatcher.Invoke(new Action(() =>
+                {
+                    _client.OnException -= Client_OnException;
+                    _client.Stop();
 
-			var threadEvent = new ManualResetEventSlim(false);
-			var stepsPassed = 0;
-			var needCalculatePassedSteps = true;
+                    startStopButton.IsChecked = false;
 
-			int pauseDelay = 1000 / Frequency;
+                    MessageBox.Show(this, 
+                        "Couldn't connect to server.\nPlease check destination IP and your network connection.", 
+                        "Connection problem!", 
+                        MessageBoxButton.OK, 
+                        MessageBoxImage.Warning);
+                }));
+            }
+            else
+            {
+                Dispatcher.Invoke(new Action(() =>
+                {
+                    startStopButton.Content = "Stop";
+                    startStopButton.IsEnabled = true;
+                }));
 
-			while (!_stop)
-			{
-				threadEvent.Wait(pauseDelay);
-				if (_client == null)
-				{
-					continue;
-				}
+                var threadEvent = new ManualResetEventSlim(false);
+                var stepsPassed = 0;
+                var needCalculatePassedSteps = true;
 
-				var processedOrders = _client.ResetProcessedOrders();
-				totalOrdersProcessed += processedOrders;
+                int pauseDelay = 1000 / Frequency;
 
-				for (int i = 0; i < _processedOrdersY.Length - 1; i++)
-				{
-					_processedOrdersY[i] = _processedOrdersY[i + 1];
-					_averageY[i] = _averageY[i + 1];
-					_cancelledOrdersY[i] = _cancelledOrdersY[i + 1];
-					_createdOrdersY[i] = _createdOrdersY[i + 1];
-					_executedOrdersY[i] = _executedOrdersY[i + 1];
-					_completedOrdersY[i] = _completedOrdersY[i + 1];
-					_rejectedOrdersY[i] = _rejectedOrdersY[i + 1];
-					_rejectedRequestsY[i] = _rejectedRequestsY[i + 1];
-					_ordersSendY[i] = _ordersSendY[i + 1];
-					_averageSendY[i] = _averageSendY[i + 1];
-					_latency90Y[i] = _latency90Y[i + 1];
-					_latency95Y[i] = _latency95Y[i + 1];
-					_latency99Y[i] = _latency99Y[i + 1];
-				}
+                while (!_stop)
+                {
+                    if (_client == null)
+                    {
+                        continue;
+                    }
 
-				_processedOrdersY[_processedOrdersY.Length - 1] = processedOrders;
-				_cancelledOrdersY[_cancelledOrdersY.Length - 1] = _client.ResetCancelledOrders();
-				_createdOrdersY[_createdOrdersY.Length - 1] = _client.ResetCreatedOrders();
-				_executedOrdersY[_executedOrdersY.Length - 1] = _client.ResetExecutedOrders();
-				_completedOrdersY[_completedOrdersY.Length - 1] = _client.ResetCompletedOrders();
-				_rejectedOrdersY[_rejectedOrdersY.Length - 1] = _client.ResetRejectedOrders();
-				_rejectedRequestsY[_rejectedRequestsY.Length - 1] = _client.ResetRejectedRequests();
+                    var processedOrders = _client.ResetProcessedOrders();
+                    totalOrdersProcessed += processedOrders;
 
-				totalOrderSend += (_ordersSendY[_ordersSendY.Length - 1] = _client.ResetSendOrders());
+                    for (int i = 0; i < _processedOrdersY.Length - 1; i++)
+                    {
+                        _processedOrdersY[i] = _processedOrdersY[i + 1];
+                        _averageY[i] = _averageY[i + 1];
+                        _cancelledOrdersY[i] = _cancelledOrdersY[i + 1];
+                        _createdOrdersY[i] = _createdOrdersY[i + 1];
+                        _executedOrdersY[i] = _executedOrdersY[i + 1];
+                        _completedOrdersY[i] = _completedOrdersY[i + 1];
+                        _rejectedOrdersY[i] = _rejectedOrdersY[i + 1];
+                        _rejectedRequestsY[i] = _rejectedRequestsY[i + 1];
+                        _ordersSendY[i] = _ordersSendY[i + 1];
+                        _averageSendY[i] = _averageSendY[i + 1];
+                        _latency90Y[i] = _latency90Y[i + 1];
+                        _latency95Y[i] = _latency95Y[i + 1];
+                        _latency99Y[i] = _latency99Y[i + 1];
+                    }
 
-				if (needCalculatePassedSteps)
-				{
-					stepsPassed++;
-					needCalculatePassedSteps = stepsPassed < _stepsPerMinute;
-				}
-				_averageY[_averageY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref _processedOrdersY);
-				_averageSendY[_averageSendY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref _ordersSendY);
+                    _processedOrdersY[_processedOrdersY.Length - 1] = processedOrders;
+                    _cancelledOrdersY[_cancelledOrdersY.Length - 1] = _client.ResetCancelledOrders();
+                    _createdOrdersY[_createdOrdersY.Length - 1] = _client.ResetCreatedOrders();
+                    _executedOrdersY[_executedOrdersY.Length - 1] = _client.ResetExecutedOrders();
+                    _completedOrdersY[_completedOrdersY.Length - 1] = _client.ResetCompletedOrders();
+                    _rejectedOrdersY[_rejectedOrdersY.Length - 1] = _client.ResetRejectedOrders();
+                    _rejectedRequestsY[_rejectedRequestsY.Length - 1] = _client.ResetRejectedRequests();
 
-				_client.GetLatencyStatistic(out long countOfIntervals, out double latency90, out double latency95, out double latency9999);
-				_latency90Y[_latency90Y.Length - 1] = latency90;
-				_latency95Y[_latency95Y.Length - 1] = latency95;
-				_latency99Y[_latency99Y.Length - 1] = latency9999;
+                    totalOrderSend += (_ordersSendY[_ordersSendY.Length - 1] = _client.ResetSendOrders());
 
-				Dispatcher.BeginInvoke(new Action(() =>
-				{
-					NotifyPropertyChanged("connectionCount");
-					UpdateAllPlots(countOfIntervals);
+                    if (needCalculatePassedSteps)
+                    {
+                        stepsPassed++;
+                        needCalculatePassedSteps = stepsPassed < _stepsPerMinute;
+                    }
+                    _averageY[_averageY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref _processedOrdersY);
+                    _averageSendY[_averageSendY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref _ordersSendY);
 
-					tbTotalOrders.Text = string.Format("Orders Proc|Ave|Send:{0,10} | {1,10} | {2,-10} ({3})",
-						processedOrders, (long)_averageY[_averageY.Length - 1], (long)_ordersSendY[_ordersSendY.Length - 1], DateTime.Now);
-					tbTotalOrdersSend.Text = string.Format("Total  Proc|Send| % :{0,10} | {1,10} | {2:00.00}%",
-						totalOrdersProcessed, totalOrderSend, totalOrdersProcessed / totalOrderSend * 100);
-				}), DispatcherPriority.ApplicationIdle);
+                    _client.GetLatencyStatistic(out long countOfIntervals,
+						out double latency90, out double latency95, out double latency9999,
+						out long minimumLatency);
+                    _latency90Y[_latency90Y.Length - 1] = latency90;
+                    _latency95Y[_latency95Y.Length - 1] = latency95;
+                    _latency99Y[_latency99Y.Length - 1] = latency9999;
 
-				threadEvent.Reset();
-			}
-			_client.OnException -= Client_OnException;
-			_client.Stop();
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        NotifyPropertyChanged("connectionCount");
+                        UpdateAllPlots(countOfIntervals, minimumLatency);
 
-			threadEvent.Wait(5000);
+                        tbTotalOrders.Text = string.Format("Orders Proc|Ave|Send:{0,10} | {1,10} | {2,-10} ({3})",
+                            processedOrders, (long)_averageY[_averageY.Length - 1], (long)_ordersSendY[_ordersSendY.Length - 1], DateTime.Now);
+                        tbTotalOrdersSend.Text = string.Format("Total  Proc|Send| % :{0,10} | {1,10} | {2:00.00}%",
+                            totalOrdersProcessed, totalOrderSend, totalOrdersProcessed / totalOrderSend * 100);
+                    }), DispatcherPriority.Normal);
+
+                    threadEvent.Reset();
+                    threadEvent.Wait(pauseDelay);
+                }
+                _client.OnException -= Client_OnException;
+                _client.Stop();
+            }
 			GC.Collect(2, GCCollectionMode.Forced);
 		}
 
@@ -287,15 +338,19 @@ namespace GridEx.PerformanceMonitor
 			Dispatcher.Invoke(new Action(() => { limitOfUnansweredOrders = maxOrdersPerSecondCheckBox.IsChecked == true ? MaxOrdersPerSecond : 0; }));
 			_client = new MultiClientManager(_exitWait, processesStartedEvent);
 			_client.OnException += Client_OnException;
-			_client.Run(App.connectionConfig.IP, App.connectionConfig.Port, MaxConnections, limitOfUnansweredOrders / MaxConnections);
+			_client.Run(App.connectionConfig.IP.MapToIPv4().ToString(), App.connectionConfig.Port, MaxConnections,
+				_priceStrategy, _volumeStrategy,
+				limitOfUnansweredOrders / MaxConnections);
 		}
 
 		private void Client_OnException(long userID, string message)
 		{
-			Dispatcher.Invoke(
+			Dispatcher.BeginInvoke(
 				new Action(() =>
 			   {
-				   log.Text += string.Format("{0}\nUser ID: {1}\n{2}\n----------------------------------------------------------\n", DateTime.Now, userID, message);
+				   if (log.Text.Length > 10_000_000)
+					   log.Text = string.Empty;
+				   log.Text += string.Format("{0:T}|{1}: {2}\n", DateTime.Now, userID, message);
 			   }));
 		}
 
@@ -321,6 +376,8 @@ namespace GridEx.PerformanceMonitor
 			_exitWait.Wait(5000);
 			if (!_exitWait.IsSet && _client != null)
 				_client.ForceStop();
+
+			OptionsConfig.Save(_priceStrategy, _volumeStrategy);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -331,6 +388,41 @@ namespace GridEx.PerformanceMonitor
 			for (int i = data.Length - 1; i >= data.Length - countOfValues; i--)
 				sum += data[i];
 			return sum / countOfValues;
+		}
+
+		private void PricesVolumesOtions_Click(object sender, RoutedEventArgs e)
+		{
+			if (_priceAndVolumeWindow == null)
+			{
+				_priceAndVolumeWindow = new PriceAndVolumeWindow(_priceStrategy, _volumeStrategy)
+				{
+					Owner = this,
+					ShowActivated = true
+				};
+				_priceAndVolumeWindow.priceAndValueChanged += _priceAndVolumeWindow_priceAndValueChanged;
+				_priceAndVolumeWindow.Closed += _priceAndVolumeWindow_Closed;
+				_priceAndVolumeWindow.Show();
+			}
+			else
+				_priceAndVolumeWindow.Activate();
+		}
+
+		private void _priceAndVolumeWindow_Closed(object sender, EventArgs e)
+		{
+			_priceAndVolumeWindow.priceAndValueChanged -= _priceAndVolumeWindow_priceAndValueChanged;
+			_priceAndVolumeWindow.Closed -= _priceAndVolumeWindow_Closed;
+			_priceAndVolumeWindow = null;
+		}
+
+		private void _priceAndVolumeWindow_priceAndValueChanged(PriceVolumeStrategyAbstract priceStrategy, PriceVolumeStrategyAbstract volumeStrategy)
+		{
+			_priceStrategy = priceStrategy;
+			_volumeStrategy = volumeStrategy;
+			if (_client != null)
+			{
+				_client.SetPriceStrategy(_priceStrategy);
+				_client.SetVolumeStrategy(_volumeStrategy);
+			}
 		}
 
 		private long _maxConnections = 8;
@@ -347,6 +439,11 @@ namespace GridEx.PerformanceMonitor
 		private int _stepsPerMinute;
 		private int _frequency;
 		private bool _stop;
+
+		private const double DefaultVolumeTop = 0.00001;
+		private const double DefaultVolumeBottom = 0.0000001;
+		private const double DefaultPriceTop = 10020001 * 0.00000001;
+		private const double DefaultPriceBottom = 10000000 * 0.00000001;
 
 		private int _intervalInMinutes = 2;
 
@@ -380,5 +477,9 @@ namespace GridEx.PerformanceMonitor
 		private LineGraph _latency90Graph;
 		private LineGraph _latency95Graph;
 		private LineGraph _latency99Graph;
+
+		PriceVolumeStrategyAbstract _priceStrategy;
+		PriceVolumeStrategyAbstract _volumeStrategy;
+		PriceAndVolumeWindow _priceAndVolumeWindow;
 	}
 }
