@@ -141,11 +141,6 @@ namespace GridEx.PerformanceMonitor.Client
 					CalculateOrderProcessed(_hftSocket, 1);
 				};
 
-				_hftSocket.OnMarketInfo += (socket, eventArgs) =>
-				{
-
-				};
-
 				_hftSocket.OnOrderCreated += (socket, eventArgs) =>
 				{
 					long time = _latencyStopwatch.ElapsedMilliseconds;
