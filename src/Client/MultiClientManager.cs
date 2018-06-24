@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
+using PerformanceMonitor.Utils;
 
 namespace GridEx.PerformanceMonitor.Client
 {
@@ -20,15 +21,16 @@ namespace GridEx.PerformanceMonitor.Client
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void GetLatencyStatistic(out long totalIntervals, out double latency90, out double latency95, out double latency99)
+        public void GetLatencyStatistic(out long totalIntervals, out double latency90, out double latency95, out double latency99, out long minimumLatency)
         {
-            latency90 = latency95 = latency99 = 0;
+            latency90 = latency95 = latency99 = minimumLatency = 0;
             long[] intervals =  _clients.SelectMany(client => client.GetLatencyTimesAndClear()).ToArray();
             totalIntervals = intervals.LongLength;
             if (intervals.Any())
             {
                 Array.Sort(intervals);
-                latency90 = intervals[(int)((totalIntervals - 1) * 0.90)];
+				minimumLatency = intervals[0];
+				latency90 = intervals[(int)((totalIntervals - 1) * 0.90)];
                 latency95 = intervals[(int)((totalIntervals - 1) * 0.95)];
                 latency99 = intervals[(int)((totalIntervals - 1) * 0.99)];
             }
@@ -38,12 +40,20 @@ namespace GridEx.PerformanceMonitor.Client
 
         public int ConnectionsCount { get => _clients.Where(client => client.IsConnected).Count(); }
         
-        public void Run(string hftServerAddress, int hftServerPort, long publisherCount, long limitOfOrdersPerSecond = 0)
+        public void Run(string hftServerAddress, int hftServerPort, long publisherCount,
+			PriceVolumeStrategyAbstract priceStrategy,
+			PriceVolumeStrategyAbstract volumeStrategy,
+			long limitOfOrdersPerSecond = 0)
         {
-            for (var i = 0; i < publisherCount; ++i)
+			Random random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
+			_priceStrategy = priceStrategy ?? new PriceVolumeStrategyRandom(random, 10000000 * 0.00000001, 10020001 * 0.00000001);
+			_volumeStrategy = volumeStrategy ?? new PriceVolumeStrategyRandom(random, 10000 * 000001, 100001 * 000001);
+
+			var userIdStart = DateTime.Now.ToFileTimeUtc();
+			for (var i = 0; i < publisherCount; ++i)
             {
-                var userId = DateTime.Now.ToFileTimeUtc() + i;
-                ManualResetEventSlim clientStartedEvent = new ManualResetEventSlim();
+				var userId = userIdStart + i;
+				ManualResetEventSlim clientStartedEvent = new ManualResetEventSlim();
                 _clientsStartedEvents.Add(clientStartedEvent);
                 ManualResetEventSlim clientFinishedEvent = new ManualResetEventSlim();
                 _clientsFinishedEvents.Add(clientFinishedEvent);
@@ -51,9 +61,30 @@ namespace GridEx.PerformanceMonitor.Client
                 client.OnException += ClientOnException;
                 _clients.Add(client);
             }
-            Random random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
+            
             ManualResetEventSlim canStartEvent = new ManualResetEventSlim();
-            _clients.ForEach(client => client.Run(hftServerAddress, hftServerPort, ref _cancellationTokenSource, ref canStartEvent, ref random, limitOfOrdersPerSecond));
+
+			try
+			{
+				for (int i = 0; i < _clients.Count; i++)
+				{
+					_clients[i].Run(hftServerAddress, hftServerPort, ref _cancellationTokenSource, ref canStartEvent, ref random,
+						CloneStrategy(ref _priceStrategy, i + 1),
+						CloneStrategy(ref _volumeStrategy, i + 1),
+						limitOfOrdersPerSecond);
+				}
+			}
+			catch
+			{
+				canStartEvent.Set();
+				_clientsStartedEvents.ForEach(ev => ev.Set());
+				_processesStartedEvent.Set();
+				_manualResetEvent.Set();
+				_simulationEnded.Set();
+				_enviromentExitWait.Set();
+
+				return;
+			}
 
             Thread.Sleep(5000);
 
@@ -167,6 +198,30 @@ namespace GridEx.PerformanceMonitor.Client
 			}
 		}
 
+		public void SetPriceStrategy(PriceVolumeStrategyAbstract priceVolumeStrategy)
+		{
+			_clients.ForEach(client => client.SetPriceStrategy(priceVolumeStrategy));
+		}
+
+		public void SetVolumeStrategy(PriceVolumeStrategyAbstract priceVolumeStrategy)
+		{
+			_clients.ForEach(client => client.SetVolumeStrategy(priceVolumeStrategy));
+		}
+
+		private PriceVolumeStrategyAbstract CloneStrategy(ref PriceVolumeStrategyAbstract strategy, int strategyNumber)
+		{
+			PriceVolumeStrategySinus sinusStrategy = strategy as PriceVolumeStrategySinus;
+			if (sinusStrategy != null)
+			{
+				return new PriceVolumeStrategySinus(sinusStrategy.Period, sinusStrategy.Minimum, sinusStrategy.Maximum,
+					sinusStrategy.PhaseShift * strategyNumber);
+			}
+			else
+			{
+				return (PriceVolumeStrategyAbstract)strategy.Clone();
+			}
+		}
+
 		private readonly List<ManualResetEventSlim> _clientsStartedEvents = new List<ManualResetEventSlim>();
 		private readonly List<ManualResetEventSlim> _clientsFinishedEvents = new List<ManualResetEventSlim>();
 		private readonly Stopwatch _latencyStopwatch = new Stopwatch();
@@ -179,5 +234,8 @@ namespace GridEx.PerformanceMonitor.Client
 		private ManualResetEventSlim _processesStartedEvent;
 
 		private Timer _taskCheckTimer;
+
+		private PriceVolumeStrategyAbstract _priceStrategy;
+		private PriceVolumeStrategyAbstract _volumeStrategy;
 	}
 }

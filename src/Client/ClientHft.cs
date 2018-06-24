@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Concurrent;
 
+using PerformanceMonitor.Utils;
+using GridEx.API.Responses;
+
 namespace GridEx.PerformanceMonitor.Client
 {
 	public delegate void OnException(long userID, string message);
@@ -34,10 +37,10 @@ namespace GridEx.PerformanceMonitor.Client
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public long[] GetLatencyTimesAndClear()
 		{
-			long[] returndValues = _latencyOrdersCreated.Select(l => l.OrderCreatedTime - l.SendTime).ToArray();
-			_latencyOrdersCreated = new ConcurrentBag<Latency>();
-			return returndValues;
-		}
+            ConcurrentQueue<Latency> __latencyOrdersCreated = _latencyOrdersCreated;
+            _latencyOrdersCreated = new ConcurrentQueue<Latency>();
+            return __latencyOrdersCreated.Select(l => l.OrderCreatedTime - l.SendTime).ToArray();
+        }
 
 		public event OnException OnException;
 
@@ -57,14 +60,29 @@ namespace GridEx.PerformanceMonitor.Client
 
 		public bool IsConnected { get => (_hftSocket == null || _hftSocket.IsConnected); }
 
+		public void SetPriceStrategy(PriceVolumeStrategyAbstract priceVolumeStrategy)
+		{
+			Interlocked.Exchange(ref _priceStrategy, (PriceVolumeStrategyAbstract)priceVolumeStrategy.Clone());
+		}
+
+		public void SetVolumeStrategy(PriceVolumeStrategyAbstract priceVolumeStrategy)
+		{
+			Interlocked.Exchange(ref _volumeStrategy, (PriceVolumeStrategyAbstract)priceVolumeStrategy.Clone());
+		}
+
 		public void Run(
 			string hftServerAddress, 
 			int hftServerPort, 
 			ref CancellationTokenSource cancellationTokenSource, 
 			ref ManualResetEventSlim canStartEvent, 
 			ref Random random,
+			PriceVolumeStrategyAbstract priceStrategy,
+			PriceVolumeStrategyAbstract volumeStrategy,
 			long limitOfUnansweredOrders = 0)
 		{
+			SetPriceStrategy(priceStrategy);
+			SetVolumeStrategy(volumeStrategy);
+
 			_receivedOrders = 0;
 			_limitOfUnansweredOrders = limitOfUnansweredOrders;
 			_latencyOrdersSended = new ConcurrentDictionary<long, Latency>(2, limitOfUnansweredOrders == 0 ? CountMaxChachedOrders : (int)limitOfUnansweredOrders);
@@ -82,6 +100,7 @@ namespace GridEx.PerformanceMonitor.Client
 
 				_hftSocket.OnException += (socket, exception) =>
 				{
+					OnException?.Invoke(ClientId, exception.Message);
 					try
 					{
 						if (socket.IsConnected)
@@ -94,18 +113,20 @@ namespace GridEx.PerformanceMonitor.Client
 
 				_hftSocket.OnRequestRejected += (socket, eventArgs) =>
 				{
+					SendMessageAboutErrorIfNeed("Req rej", eventArgs.RejectCode);
+
 					Interlocked.Increment(ref _rejectedRequests);
 					CalculateOrderProcessed(_hftSocket, 1);
 				};
 
 				_hftSocket.OnUserTokenAccepted += (socket, eventArgs) =>
 				{
-
+					
 				};
 
 				_hftSocket.OnUserTokenRejected += (socket, eventArgs) =>
 				{
-
+					SendMessageAboutErrorIfNeed($"UTok({ eventArgs.Token}) rej", eventArgs.RejectCode);
 				};
 
 				_hftSocket.OnAllOrdersCancelled += (socket, eventArgs) =>
@@ -120,11 +141,6 @@ namespace GridEx.PerformanceMonitor.Client
 					CalculateOrderProcessed(_hftSocket, 1);
 				};
 
-				_hftSocket.OnMarketInfo += (socket, eventArgs) =>
-				{
-
-				};
-
 				_hftSocket.OnOrderCreated += (socket, eventArgs) =>
 				{
 					long time = _latencyStopwatch.ElapsedMilliseconds;
@@ -132,17 +148,19 @@ namespace GridEx.PerformanceMonitor.Client
 					if (_latencyOrdersSended.TryRemove(eventArgs.RequestId, out Latency l))
 					{
 						l.OrderCreatedTime = time;
-						_latencyOrdersCreated.Add(l);
-					}
+						_latencyOrdersCreated.Enqueue(l);
+                    }
 				};
 
 				_hftSocket.OnOrderRejected += (socket, eventArgs) =>
 				{
+					SendMessageAboutErrorIfNeed($"Or rej", eventArgs.RejectCode);
+
 					if (_latencyOrdersSended.TryRemove(eventArgs.RequestId, out Latency l))
 					{
 						l.OrderCreatedTime = _latencyStopwatch.ElapsedMilliseconds;
-						_latencyOrdersCreated.Add(l);
-					}
+                        _latencyOrdersCreated.Enqueue(l);
+                    }
 					var rejectedOrders = Interlocked.Increment(ref _rejectedOrders);
 					CalculateOrderProcessed(_hftSocket, 1);
 				};
@@ -267,8 +285,9 @@ namespace GridEx.PerformanceMonitor.Client
 
 		public void ClearCache()
 		{
-			_latencyOrdersSended.Clear();
-			_latencyOrdersCreated = new ConcurrentBag<Latency>();
+            _latencyOrdersSended.Clear();
+            _latencyOrdersSended = new ConcurrentDictionary<long, Latency>();
+            _latencyOrdersCreated = new ConcurrentQueue<Latency>();
 		}
 
 		private void CalculateOrderProcessed(HftSocket hftSocket, long orders)
@@ -298,8 +317,8 @@ namespace GridEx.PerformanceMonitor.Client
 					}
 
 					var orderType = batchCounter % 2L == 0L ? RequestTypeCode.SellLimitOrder : RequestTypeCode.BuyLimitOrder;
-					var price = _random.Next(10000000, 10020001) * 0.00000001;
-					var volume = _random.Next(10000, 100001) * 0.000001;
+					var price = _priceStrategy.ProduceValue();
+					var volume = _volumeStrategy.ProduceValue();
 
 					if (orderType == RequestTypeCode.BuyLimitOrder)
 					{
@@ -334,6 +353,32 @@ namespace GridEx.PerformanceMonitor.Client
 			ClearCache();
 		}
 
+		private void IncreaseSameErrors()
+		{
+			Interlocked.Increment(ref _sameErrors);
+			if (_sameErrors >= 1000)
+			{
+				OnException?.Invoke(ClientId, $"{Interlocked.Exchange(ref _sameErrors, 0)} same");
+			}
+		}
+
+		private void SendMessageAboutErrorIfNeed(string message, RejectReasonCode rejectReasonCode)
+		{
+			if (_lastErrorType != rejectReasonCode)
+			{
+				var sameErrorsCount = Interlocked.Exchange(ref _sameErrors, 0);
+				_lastErrorType = rejectReasonCode;
+				OnException?.Invoke(ClientId,
+					sameErrorsCount != 0
+					? $"{message} (+{sameErrorsCount}): {rejectReasonCode.ToString()}"
+					: $"{message}: {rejectReasonCode.ToString()}");
+			}
+			else
+			{
+				IncreaseSameErrors();
+			}
+		}
+
 		private Random _random;
 		private CancellationTokenSource _cancellationTokenSource;
 		private ManualResetEventSlim _manualResetEvent = new ManualResetEventSlim();
@@ -360,8 +405,14 @@ namespace GridEx.PerformanceMonitor.Client
 
 		private const int CountMaxChachedOrders = 1000000;
 		private ConcurrentDictionary<long, Latency> _latencyOrdersSended = new ConcurrentDictionary<long, Latency>(2, CountMaxChachedOrders);
-		private ConcurrentBag<Latency> _latencyOrdersCreated = new ConcurrentBag<Latency>();
+		private ConcurrentQueue<Latency> _latencyOrdersCreated = new ConcurrentQueue<Latency>();
 		private MultiClientManager _clientManager;
 		private Stopwatch _latencyStopwatch = new Stopwatch();
+
+		private PriceVolumeStrategyAbstract _priceStrategy;
+		private PriceVolumeStrategyAbstract _volumeStrategy;
+
+		private RejectReasonCode _lastErrorType = RejectReasonCode.Ok;
+		private long _sameErrors = 0;
 	}
 }

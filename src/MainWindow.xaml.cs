@@ -22,6 +22,8 @@ using InteractiveDataDisplay.WPF;
 
 using GridEx.PerformanceMonitor.Client;
 using PerformanceMonitor.Config;
+using PerformanceMonitor.Utils;
+using PerformanceMonitor.Controls;
 
 namespace GridEx.PerformanceMonitor
 {
@@ -34,13 +36,13 @@ namespace GridEx.PerformanceMonitor
 		public long MaxConnections
 		{
 			get => _maxConnections;
-			set { _maxConnections = value < 1 ? 1 : value; ; NotifyPropertyChanged("MaxConnections"); }
+			set { _maxConnections = Math.Min(1024, Math.Max(1, value)); NotifyPropertyChanged("MaxConnections"); }
 		}
 
 		public long MaxOrdersPerSecond
 		{
 			get => _maxOrdersPerSecond;
-			set { _maxOrdersPerSecond = value < MaxConnections ? (MaxConnections * 10) : value; NotifyPropertyChanged("MaxOrdersPerSecond"); }
+			set { _maxOrdersPerSecond = value < (MaxConnections * 10) ? (MaxConnections * 10) : value; NotifyPropertyChanged("MaxOrdersPerSecond"); }
 		}
 
 		public int Frequency
@@ -51,6 +53,15 @@ namespace GridEx.PerformanceMonitor
 
 		public MainWindow()
 		{
+			OptionsConfig.Load(out _priceStrategy, out _volumeStrategy);
+
+			Random random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
+
+			if (_priceStrategy == null)
+				_priceStrategy = new PriceVolumeStrategyRandom(random, DefaultPriceBottom, DefaultPriceTop);
+			if (_volumeStrategy == null)
+				_volumeStrategy = new PriceVolumeStrategyRandom(random, DefaultVolumeBottom, DefaultVolumeTop);
+
 			Frequency = 1;
 
 			InitializeComponent();
@@ -72,7 +83,7 @@ namespace GridEx.PerformanceMonitor
 			return lineGraph;
         }
 
-		private void UpdateAllPlots(long countOfIntervals)
+		private void UpdateAllPlots(long countOfIntervals, long minimumLatency)
 		{
 			_currentTpsGraph.Plot(_animatedX, _processedOrdersY);
             _averagePerformanceGraph.Plot(_animatedX, _averageY);
@@ -87,8 +98,8 @@ namespace GridEx.PerformanceMonitor
 			_latency90Graph.Plot(_animatedX, _latency90Y);
 			_latency95Graph.Plot(_animatedX, _latency95Y);
 			_latency99Graph.Plot(_animatedX, _latency99Y);
-			latencyChart.BottomTitle = "Intervals: " + countOfIntervals.ToString();
-        }
+			latencyChart.BottomTitle = string.Format("Intervals: {0, -10}      Min. latency = {1} ms", countOfIntervals, minimumLatency);
+		}
 
         void RepeairFieldOfView()
         {
@@ -154,7 +165,7 @@ namespace GridEx.PerformanceMonitor
 					_averageY[i] = _processedOrdersY[i] = 0;
 			}
 
-            UpdateAllPlots(0);
+            UpdateAllPlots(0, 0);
             RepeairFieldOfView();
         }
         private void MenuItem_Click(object sender, RoutedEventArgs e)
@@ -286,7 +297,9 @@ namespace GridEx.PerformanceMonitor
                     _averageY[_averageY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref _processedOrdersY);
                     _averageSendY[_averageSendY.Length - 1] = CalculateAveragePerformance(stepsPassed, ref _ordersSendY);
 
-                    _client.GetLatencyStatistic(out long countOfIntervals, out double latency90, out double latency95, out double latency9999);
+                    _client.GetLatencyStatistic(out long countOfIntervals,
+						out double latency90, out double latency95, out double latency9999,
+						out long minimumLatency);
                     _latency90Y[_latency90Y.Length - 1] = latency90;
                     _latency95Y[_latency95Y.Length - 1] = latency95;
                     _latency99Y[_latency99Y.Length - 1] = latency9999;
@@ -294,7 +307,7 @@ namespace GridEx.PerformanceMonitor
                     Dispatcher.BeginInvoke(new Action(() =>
                     {
                         NotifyPropertyChanged("connectionCount");
-                        UpdateAllPlots(countOfIntervals);
+                        UpdateAllPlots(countOfIntervals, minimumLatency);
 
                         tbTotalOrders.Text = string.Format("Orders Proc|Ave|Send:{0,10} | {1,10} | {2,-10} ({3})",
                             processedOrders, (long)_averageY[_averageY.Length - 1], (long)_ordersSendY[_ordersSendY.Length - 1], DateTime.Now);
@@ -325,15 +338,19 @@ namespace GridEx.PerformanceMonitor
 			Dispatcher.Invoke(new Action(() => { limitOfUnansweredOrders = maxOrdersPerSecondCheckBox.IsChecked == true ? MaxOrdersPerSecond : 0; }));
 			_client = new MultiClientManager(_exitWait, processesStartedEvent);
 			_client.OnException += Client_OnException;
-			_client.Run(App.connectionConfig.IP.MapToIPv4().ToString(), App.connectionConfig.Port, MaxConnections, limitOfUnansweredOrders / MaxConnections);
+			_client.Run(App.connectionConfig.IP.MapToIPv4().ToString(), App.connectionConfig.Port, MaxConnections,
+				_priceStrategy, _volumeStrategy,
+				limitOfUnansweredOrders / MaxConnections);
 		}
 
 		private void Client_OnException(long userID, string message)
 		{
-			Dispatcher.Invoke(
+			Dispatcher.BeginInvoke(
 				new Action(() =>
 			   {
-				   log.Text += string.Format("{0}\nUser ID: {1}\n{2}\n----------------------------------------------------------\n", DateTime.Now, userID, message);
+				   if (log.Text.Length > 10_000_000)
+					   log.Text = string.Empty;
+				   log.Text += string.Format("{0:T}|{1}: {2}\n", DateTime.Now, userID, message);
 			   }));
 		}
 
@@ -359,6 +376,8 @@ namespace GridEx.PerformanceMonitor
 			_exitWait.Wait(5000);
 			if (!_exitWait.IsSet && _client != null)
 				_client.ForceStop();
+
+			OptionsConfig.Save(_priceStrategy, _volumeStrategy);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -369,6 +388,41 @@ namespace GridEx.PerformanceMonitor
 			for (int i = data.Length - 1; i >= data.Length - countOfValues; i--)
 				sum += data[i];
 			return sum / countOfValues;
+		}
+
+		private void PricesVolumesOtions_Click(object sender, RoutedEventArgs e)
+		{
+			if (_priceAndVolumeWindow == null)
+			{
+				_priceAndVolumeWindow = new PriceAndVolumeWindow(_priceStrategy, _volumeStrategy)
+				{
+					Owner = this,
+					ShowActivated = true
+				};
+				_priceAndVolumeWindow.priceAndValueChanged += _priceAndVolumeWindow_priceAndValueChanged;
+				_priceAndVolumeWindow.Closed += _priceAndVolumeWindow_Closed;
+				_priceAndVolumeWindow.Show();
+			}
+			else
+				_priceAndVolumeWindow.Activate();
+		}
+
+		private void _priceAndVolumeWindow_Closed(object sender, EventArgs e)
+		{
+			_priceAndVolumeWindow.priceAndValueChanged -= _priceAndVolumeWindow_priceAndValueChanged;
+			_priceAndVolumeWindow.Closed -= _priceAndVolumeWindow_Closed;
+			_priceAndVolumeWindow = null;
+		}
+
+		private void _priceAndVolumeWindow_priceAndValueChanged(PriceVolumeStrategyAbstract priceStrategy, PriceVolumeStrategyAbstract volumeStrategy)
+		{
+			_priceStrategy = priceStrategy;
+			_volumeStrategy = volumeStrategy;
+			if (_client != null)
+			{
+				_client.SetPriceStrategy(_priceStrategy);
+				_client.SetVolumeStrategy(_volumeStrategy);
+			}
 		}
 
 		private long _maxConnections = 8;
@@ -385,6 +439,11 @@ namespace GridEx.PerformanceMonitor
 		private int _stepsPerMinute;
 		private int _frequency;
 		private bool _stop;
+
+		private const double DefaultVolumeTop = 0.00001;
+		private const double DefaultVolumeBottom = 0.0000001;
+		private const double DefaultPriceTop = 10020001 * 0.00000001;
+		private const double DefaultPriceBottom = 10000000 * 0.00000001;
 
 		private int _intervalInMinutes = 2;
 
@@ -419,5 +478,8 @@ namespace GridEx.PerformanceMonitor
 		private LineGraph _latency95Graph;
 		private LineGraph _latency99Graph;
 
-    }
+		PriceVolumeStrategyAbstract _priceStrategy;
+		PriceVolumeStrategyAbstract _volumeStrategy;
+		PriceAndVolumeWindow _priceAndVolumeWindow;
+	}
 }

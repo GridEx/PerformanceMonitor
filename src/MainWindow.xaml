@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:GridEx.PerformanceMonitor"
+        xmlns:local="clr-namespace:PerformanceMonitor"
+		xmlns:Utils="clr-namespace:PerformanceMonitor.Utils"
         xmlns:charts="clr-namespace:InteractiveDataDisplay.WPF;assembly=InteractiveDataDisplay.WPF"
         mc:Ignorable="d"
         Title="GridEx: Performance monitor" MinHeight="600" MinWidth="1200"
@@ -40,6 +41,7 @@
         <ToolBar DockPanel.Dock="Top">
             <Menu>
                 <MenuItem Header="IP config" ToolTip="Press to change server IP" Click="MenuItem_Click"/>
+				<MenuItem Header="Prices and Volumes" ToolTip="Press to change options prices and volumes" Click="PricesVolumesOtions_Click"/>
             </Menu>
         </ToolBar>
         <Grid Margin="5,0,5,5" Name="containerGrid">
