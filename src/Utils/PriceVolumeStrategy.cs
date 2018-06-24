@@ -148,9 +148,9 @@ namespace PerformanceMonitor.Utils
 				new XAttribute("Minimum", Minimum));
 		}
 
-		public static readonly double TopPrice = 0.99999999;
-		public static readonly double BottomPrice = 0.0000001;
-		public static readonly double TopVolume = 0.99999999;
+		public static readonly double TopPrice = 0.0002;
+		public static readonly double BottomPrice = 0.00000001;
+		public static readonly double TopVolume = 0.1;
 		public static readonly double BottomVolume = 0.0000001;
 		public static readonly uint TopPeriod = 120000;
 		public static readonly uint BottomPeriod = 1000;
