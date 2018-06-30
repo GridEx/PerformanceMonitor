@@ -58,9 +58,9 @@ namespace GridEx.PerformanceMonitor
 			Random random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
 
 			if (_priceStrategy == null)
-				_priceStrategy = new PriceVolumeStrategyRandom(random, DefaultPriceBottom, DefaultPriceTop);
+				_priceStrategy = new PriceVolumeStrategyRandom(random, PriceVolumeStrategyAbstract.BottomPrice, PriceVolumeStrategyAbstract.TopPrice);
 			if (_volumeStrategy == null)
-				_volumeStrategy = new PriceVolumeStrategyRandom(random, DefaultVolumeBottom, DefaultVolumeTop);
+				_volumeStrategy = new PriceVolumeStrategyRandom(random, PriceVolumeStrategyAbstract.BottomVolume, PriceVolumeStrategyAbstract.TopVolume);
 
 			Frequency = 1;
 
@@ -439,11 +439,6 @@ namespace GridEx.PerformanceMonitor
 		private int _stepsPerMinute;
 		private int _frequency;
 		private bool _stop;
-
-		private const double DefaultVolumeTop = 0.00001;
-		private const double DefaultVolumeBottom = 0.0000001;
-		private const double DefaultPriceTop = 10020001 * 0.00000001;
-		private const double DefaultPriceBottom = 10000000 * 0.00000001;
 
 		private int _intervalInMinutes = 2;
 
