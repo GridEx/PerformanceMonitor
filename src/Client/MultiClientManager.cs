@@ -46,8 +46,8 @@ namespace GridEx.PerformanceMonitor.Client
 			long limitOfOrdersPerSecond = 0)
         {
 			Random random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
-			_priceStrategy = priceStrategy ?? new PriceVolumeStrategyRandom(random, 10000000 * 0.00000001, 10020001 * 0.00000001);
-			_volumeStrategy = volumeStrategy ?? new PriceVolumeStrategyRandom(random, 10000 * 000001, 100001 * 000001);
+			_priceStrategy = priceStrategy ?? new PriceVolumeStrategyRandom(random, PriceVolumeStrategyAbstract.BottomPrice, PriceVolumeStrategyAbstract.TopPrice);
+			_volumeStrategy = volumeStrategy ?? new PriceVolumeStrategyRandom(random, PriceVolumeStrategyAbstract.BottomVolume, PriceVolumeStrategyAbstract.TopVolume);
 
 			var userIdStart = DateTime.Now.ToFileTimeUtc();
 			for (var i = 0; i < publisherCount; ++i)
