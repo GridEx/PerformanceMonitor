@@ -45,9 +45,12 @@ namespace GridEx.PerformanceMonitor.Client
 			PriceVolumeStrategyAbstract volumeStrategy,
 			long limitOfOrdersPerSecond = 0)
         {
-			Random random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
-			_priceStrategy = priceStrategy ?? new PriceVolumeStrategyRandom(random, PriceVolumeStrategyAbstract.BottomPrice, PriceVolumeStrategyAbstract.TopPrice);
-			_volumeStrategy = volumeStrategy ?? new PriceVolumeStrategyRandom(random, PriceVolumeStrategyAbstract.BottomVolume, PriceVolumeStrategyAbstract.TopVolume);
+			_priceStrategy = priceStrategy ?? new PriceVolumeStrategyRandom(
+				PriceVolumeStrategyAbstract.BottomPrice, 
+				PriceVolumeStrategyAbstract.TopPrice);
+			_volumeStrategy = volumeStrategy ?? new PriceVolumeStrategyRandom(
+				PriceVolumeStrategyAbstract.BottomVolume,
+				PriceVolumeStrategyAbstract.TopVolume);
 
 			var userIdStart = DateTime.Now.ToFileTimeUtc();
 			for (var i = 0; i < publisherCount; ++i)
@@ -68,6 +71,7 @@ namespace GridEx.PerformanceMonitor.Client
 			{
 				for (int i = 0; i < _clients.Count; i++)
 				{
+					var random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
 					_clients[i].Run(hftServerAddress, hftServerPort, ref _cancellationTokenSource, ref canStartEvent, ref random,
 						CloneStrategy(ref _priceStrategy, i + 1),
 						CloneStrategy(ref _volumeStrategy, i + 1),

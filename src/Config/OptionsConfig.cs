@@ -75,7 +75,7 @@ namespace PerformanceMonitor.Config
 
 				return new PriceVolumeStrategySinus(period, min, max, phaseShift);
 			}
-			return new PriceVolumeStrategyRandom(new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0)), min, max);
+			return new PriceVolumeStrategyRandom(min, max);
 		}
 
 		private static PriceVolumeStrategyAbstract LoadStrategy(XElement root, string strategyName)

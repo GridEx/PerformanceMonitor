@@ -55,12 +55,10 @@ namespace GridEx.PerformanceMonitor
 		{
 			OptionsConfig.Load(out _priceStrategy, out _volumeStrategy);
 
-			Random random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
-
 			if (_priceStrategy == null)
-				_priceStrategy = new PriceVolumeStrategyRandom(random, PriceVolumeStrategyAbstract.BottomPrice, PriceVolumeStrategyAbstract.TopPrice);
+				_priceStrategy = new PriceVolumeStrategyRandom(PriceVolumeStrategyAbstract.BottomPrice, PriceVolumeStrategyAbstract.TopPrice);
 			if (_volumeStrategy == null)
-				_volumeStrategy = new PriceVolumeStrategyRandom(random, PriceVolumeStrategyAbstract.BottomVolume, PriceVolumeStrategyAbstract.TopVolume);
+				_volumeStrategy = new PriceVolumeStrategyRandom(PriceVolumeStrategyAbstract.BottomVolume, PriceVolumeStrategyAbstract.TopVolume);
 
 			Frequency = 1;
 
