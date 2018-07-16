@@ -17,10 +17,10 @@ namespace PerformanceMonitor.Utils
 			_delta = Math.Abs(Maximum - Minimum);
 		}
 
-		public PriceVolumeStrategyRandom(Random randomWithSeed, double minimum, double maximum) 
+		public PriceVolumeStrategyRandom(double minimum, double maximum)
 			: base(minimum, maximum)
 		{
-			_randomWithSeed = randomWithSeed ?? new Random((int)DateTime.Now.Ticks);
+			_randomWithSeed = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
 			_delta = Math.Abs(Maximum - Minimum);
 		}
 
@@ -31,7 +31,8 @@ namespace PerformanceMonitor.Utils
 
 		public override object Clone()
 		{
-			return new PriceVolumeStrategyRandom(_randomWithSeed, Minimum, Maximum);
+			
+			return new PriceVolumeStrategyRandom(Minimum, Maximum);
 		}
 
 		private Random _randomWithSeed;

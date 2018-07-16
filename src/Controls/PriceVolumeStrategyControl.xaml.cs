@@ -93,7 +93,7 @@ namespace PerformanceMonitor.Controls
 			}
 			else
 			{
-				return new PriceVolumeStrategyRandom(new Random((int)DateTime.Now.Ticks), Minimum, Maximum);
+				return new PriceVolumeStrategyRandom(Minimum, Maximum);
 			}
 		}
 
