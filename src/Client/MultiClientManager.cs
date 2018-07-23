@@ -1,12 +1,8 @@
-﻿using GridEx.API;
-using GridEx.API.Requests;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Linq;
 using PerformanceMonitor.Utils;
 

@@ -1,8 +1,6 @@
 
 using GridEx.API;
-using GridEx.API.Requests;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using System.Runtime.CompilerServices;
@@ -12,7 +10,8 @@ using System.Linq;
 using System.Collections.Concurrent;
 
 using PerformanceMonitor.Utils;
-using GridEx.API.Responses;
+using GridEx.API.Trading.Requests;
+using GridEx.API.Trading.Responses;
 
 namespace GridEx.PerformanceMonitor.Client
 {
