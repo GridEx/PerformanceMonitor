@@ -10,6 +10,7 @@ using GridEx.API.Trading;
 using PerformanceMonitor.Utils;
 using GridEx.API.Trading.Requests;
 using GridEx.API.Trading.Responses;
+using GridEx.API.Trading;
 
 namespace GridEx.PerformanceMonitor.Client
 {
