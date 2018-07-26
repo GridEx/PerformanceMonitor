@@ -310,7 +310,7 @@ namespace GridEx.PerformanceMonitor
                         tbTotalOrders.Text = string.Format("Orders Proc|Ave|Send:{0,10} | {1,10} | {2,-10} ({3})",
                             processedOrders, (long)_averageY[_averageY.Length - 1], (long)_ordersSendY[_ordersSendY.Length - 1], DateTime.Now);
                         tbTotalOrdersSend.Text = string.Format("Total  Proc|Send| % :{0,10} | {1,10} | {2:00.00}%",
-                            totalOrdersProcessed, totalOrderSend, totalOrdersProcessed / totalOrderSend * 100);
+                            totalOrdersProcessed, totalOrderSend, totalOrderSend == 0 ? 0 : (totalOrdersProcessed / totalOrderSend * 100));
                     }), DispatcherPriority.Normal);
 
                     threadEvent.Reset();

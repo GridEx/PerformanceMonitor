@@ -209,10 +209,10 @@ namespace GridEx.PerformanceMonitor.Client
 				() => RunHftSocket(),
 				TaskCreationOptions.LongRunning);
 
-			var batchSize = _random.Next(10, 20);
+			var maxBatchSize = (int)Math.Min(20, _limitOfUnansweredOrders > 0 ? _limitOfUnansweredOrders : 10);
 
 			_runOrderRushTask = Task.Factory.StartNew(
-				() => OrderRushLoop(_hftSocket, batchSize),
+				() => OrderRushLoop(_hftSocket, maxBatchSize),
 				TaskCreationOptions.LongRunning);
 		}
 
@@ -294,10 +294,16 @@ namespace GridEx.PerformanceMonitor.Client
 			Interlocked.Add(ref _receivedOrders, orders);
 		}
 
-		private void OrderRushLoop(HftSocket socket, int batchSize)
+		private void OrderRushLoop(HftSocket socket, int maxBatchSize)
 		{
 			_manualResetEvent.Wait();
 			_processesStartedEvent.Set();
+
+			maxBatchSize = Math.Max(1, maxBatchSize);
+
+			var minBatchSize = Math.Max(maxBatchSize - 10, 1);
+			var random = new Random(BitConverter.ToInt32(Guid.NewGuid().ToByteArray(), 0));
+			var batchSize = random.Next(minBatchSize, maxBatchSize);
 
 			double _processedOrdersDouble = _processedOrders;
 			var batchCounter = 0;
@@ -335,6 +341,8 @@ namespace GridEx.PerformanceMonitor.Client
 				}
 				else
 				{
+					batchSize = random.Next(minBatchSize, maxBatchSize);
+
 					socket.Send(new CancelAllOrders(requestId++));
 
 					batchCounter = 0;
