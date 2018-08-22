@@ -127,15 +127,15 @@ namespace GridEx.PerformanceMonitor.Client
 					SendMessageAboutErrorIfNeed($"UTok({ eventArgs.Token}) rej", eventArgs.RejectCode);
 				};
 
-				_hftSocket.OnAllOrdersCancelled += (socket, eventArgs) =>
+				_hftSocket.OnAllOrdersCanceled += (socket, eventArgs) =>
 				{
-					var cancelledOrders = Interlocked.Add(ref _cancelledOrders, eventArgs.Amount);
+					var canceledOrders = Interlocked.Add(ref _canceledOrders, eventArgs.Amount);
 					CalculateOrderProcessed(_hftSocket, eventArgs.Amount + 1);
 				};
 
-				_hftSocket.OnOrderCancelled += (socket, eventArgs) =>
+				_hftSocket.OnOrderCanceled += (socket, eventArgs) =>
 				{
-					var cancelledOrders = Interlocked.Increment(ref _cancelledOrders);
+					var canceledOrders = Interlocked.Increment(ref _canceledOrders);
 					CalculateOrderProcessed(_hftSocket, 1);
 				};
 
@@ -229,9 +229,9 @@ namespace GridEx.PerformanceMonitor.Client
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public long ResetCancelledOrders()
+		public long ResetCanceledOrders()
 		{
-			return Interlocked.Exchange(ref _cancelledOrders, 0L);
+			return Interlocked.Exchange(ref _canceledOrders, 0L);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -389,7 +389,7 @@ namespace GridEx.PerformanceMonitor.Client
 		private CancellationTokenSource _cancellationTokenSource;
 		private ManualResetEventSlim _manualResetEvent = new ManualResetEventSlim();
 
-		private long _cancelledOrders = 0;
+		private long _canceledOrders = 0;
 		private long _createdOrders = 0;
 		private long _executedOrders = 0;
 		private long _completedOrders = 0;
