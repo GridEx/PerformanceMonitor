@@ -278,7 +278,7 @@ namespace GridEx.PerformanceMonitor
                     }
 
                     _processedOrdersY[_processedOrdersY.Length - 1] = processedOrders;
-                    _cancelledOrdersY[_cancelledOrdersY.Length - 1] = _client.ResetCancelledOrders();
+                    _cancelledOrdersY[_cancelledOrdersY.Length - 1] = _client.ResetCanceledOrders();
                     _createdOrdersY[_createdOrdersY.Length - 1] = _client.ResetCreatedOrders();
                     _executedOrdersY[_executedOrdersY.Length - 1] = _client.ResetExecutedOrders();
                     _completedOrdersY[_completedOrdersY.Length - 1] = _client.ResetCompletedOrders();

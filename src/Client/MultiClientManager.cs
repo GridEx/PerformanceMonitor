@@ -114,9 +114,9 @@ namespace GridEx.PerformanceMonitor.Client
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public long ResetCancelledOrders()
+        public long ResetCanceledOrders()
         {
-            return _clients.Sum(client => client.ResetCancelledOrders());
+            return _clients.Sum(client => client.ResetCanceledOrders());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
