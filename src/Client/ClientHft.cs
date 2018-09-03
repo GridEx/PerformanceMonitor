@@ -10,7 +10,6 @@ using GridEx.API.Trading;
 using PerformanceMonitor.Utils;
 using GridEx.API.Trading.Requests;
 using GridEx.API.Trading.Responses;
-using GridEx.API.Trading;
 
 namespace GridEx.PerformanceMonitor.Client
 {
@@ -320,11 +319,11 @@ namespace GridEx.PerformanceMonitor.Client
 						continue;
 					}
 
-					var orderType = batchCounter % 2L == 0L ? RequestTypeCode.SellLimitOrder : RequestTypeCode.BuyLimitOrder;
+					var orderType = batchCounter % 2L == 0L ? HftRequestTypeCode.SellLimitOrder : HftRequestTypeCode.BuyLimitOrder;
 					var price = _priceStrategy.ProduceValue();
 					var volume = _volumeStrategy.ProduceValue();
 
-					if (orderType == RequestTypeCode.BuyLimitOrder)
+					if (orderType == HftRequestTypeCode.BuyLimitOrder)
 					{
 						socket.Send(new BuyLimitOrder(requestId, price, volume));
 					}
@@ -368,7 +367,7 @@ namespace GridEx.PerformanceMonitor.Client
 			}
 		}
 
-		private void SendMessageAboutErrorIfNeed(string message, RejectReasonCode rejectReasonCode)
+		private void SendMessageAboutErrorIfNeed(string message, HftRejectReasonCode rejectReasonCode)
 		{
 			if (_lastErrorType != rejectReasonCode)
 			{
@@ -418,7 +417,7 @@ namespace GridEx.PerformanceMonitor.Client
 		private PriceVolumeStrategyAbstract _priceStrategy;
 		private PriceVolumeStrategyAbstract _volumeStrategy;
 
-		private RejectReasonCode _lastErrorType = RejectReasonCode.Ok;
+		private HftRejectReasonCode _lastErrorType = HftRejectReasonCode.Ok;
 		private long _sameErrors = 0;
 	}
 }

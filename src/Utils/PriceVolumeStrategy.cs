@@ -31,7 +31,7 @@ namespace PerformanceMonitor.Utils
 
 		public override object Clone()
 		{
-			
+
 			return new PriceVolumeStrategyRandom(Minimum, Maximum);
 		}
 
@@ -43,7 +43,7 @@ namespace PerformanceMonitor.Utils
 	{
 		public PriceVolumeStrategySinus(XElement sourse) : base(sourse)
 		{
-			
+
 		}
 
 		public PriceVolumeStrategySinus(uint period, double minimum, double maximum, double phaseShift)
@@ -174,7 +174,7 @@ namespace PerformanceMonitor.Utils
 				value = Math.Max(minimumValue, maximumValue);
 			}
 			return value;
-		 }
+		}
 
 		protected uint LoadUintInvariantCulture(XElement owner, string attributeName, uint minimumValue, uint maximumValue)
 		{
