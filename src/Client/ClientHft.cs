@@ -128,8 +128,8 @@ namespace GridEx.PerformanceMonitor.Client
 
 				_hftSocket.OnAllOrdersCanceled += (socket, eventArgs) =>
 				{
-					var canceledOrders = Interlocked.Add(ref _canceledOrders, eventArgs.Amount);
-					CalculateOrderProcessed(_hftSocket, eventArgs.Amount + 1);
+					var canceledOrders = Interlocked.Add(ref _canceledOrders, eventArgs.Quantity);
+					CalculateOrderProcessed(_hftSocket, eventArgs.Quantity + 1);
 				};
 
 				_hftSocket.OnOrderCanceled += (socket, eventArgs) =>
