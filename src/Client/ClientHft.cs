@@ -162,9 +162,9 @@ namespace GridEx.PerformanceMonitor.Client
 					CalculateOrderProcessed(_hftSocket, 1);
 				};
 
-				_hftSocket.OnConnectionTooSlow += (socket, eventArgs) =>
+				_hftSocket.OnRestrictionsViolated += (socket, eventArgs) =>
 				{
-					OnException?.Invoke(ClientId, "Connection is too slow. Connection was closed.");
+					OnException?.Invoke(ClientId, "Restrictions were violated. Connection was closed.");
 				};
 
 				_hftSocket.OnOrderExecuted += (socket, eventArgs) =>
