@@ -116,14 +116,14 @@ namespace GridEx.PerformanceMonitor.Client
 					CalculateOrderProcessed(_hftSocket, 1);
 				};
 
-				_hftSocket.OnUserTokenAccepted += (socket, eventArgs) =>
+				_hftSocket.OnAccessTokenAccepted += (socket, eventArgs) =>
 				{
 					
 				};
 
-				_hftSocket.OnUserTokenRejected += (socket, eventArgs) =>
+				_hftSocket.OnAccessTokenRejected += (socket, eventArgs) =>
 				{
-					SendMessageAboutErrorIfNeed($"UTok({ eventArgs.Token}) rej", eventArgs.RejectCode);
+					SendMessageAboutErrorIfNeed($"ATok({ eventArgs.Token}) rej", eventArgs.RejectCode);
 				};
 
 				_hftSocket.OnAllOrdersCanceled += (socket, eventArgs) =>
@@ -186,7 +186,7 @@ namespace GridEx.PerformanceMonitor.Client
 				try
 				{
 					_hftSocket.Connect(serverEndpoint);
-					_hftSocket.Send(new UserToken(0, ClientId));
+					_hftSocket.Send(new AccessToken(0, ClientId));
 					_hftSocket.WaitResponses(_cancellationTokenSource.Token);
 					_hftSocket.Disconnect();
 				}
