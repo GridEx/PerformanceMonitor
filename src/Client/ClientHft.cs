@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Concurrent;
+using GridEx.API;
 using GridEx.API.Trading;
 using PerformanceMonitor.Utils;
 using GridEx.API.Trading.Requests;
@@ -123,7 +124,7 @@ namespace GridEx.PerformanceMonitor.Client
 
 				_hftSocket.OnAccessTokenRejected += (socket, eventArgs) =>
 				{
-					SendMessageAboutErrorIfNeed($"ATok({ eventArgs.Token}) rej", eventArgs.RejectCode);
+					SendMessageAboutErrorIfNeed("ATok rej", eventArgs.RejectCode);
 				};
 
 				_hftSocket.OnAllOrdersCanceled += (socket, eventArgs) =>
@@ -186,7 +187,7 @@ namespace GridEx.PerformanceMonitor.Client
 				try
 				{
 					_hftSocket.Connect(serverEndpoint);
-					_hftSocket.Send(new AccessToken(0, ClientId));
+					_hftSocket.Send(new AccessToken(0, new ApiVersion(0, 0, 0), ClientId));
 					_hftSocket.WaitResponses(_cancellationTokenSource.Token);
 					_hftSocket.Disconnect();
 				}
